@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 
 class Factory:
@@ -40,6 +41,31 @@ class Factory:
             suma += self.production[i] * self.profit[i]
         return suma
 
+    # def random_solution(self):
+    #     production = [10] # nie wiem czy to tutaj czy do solution to wrzucic, jaki kto ma plan tak niech robi
+    #     return production
+
+
+class Solution(Factory):
+    def __init__(self):
+        """
+        workers_hours_left: pozostałe roboczogodziny
+        hours_per_machine_left: pozostałe godziny na daną maszynę
+        W tej klasie zmieniamy ilość dostępnych zasobów
+        """
+        super().__init__(worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
+                 machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10)
+        self.workers_hours_left = self.workers_hours
+        self.hours_per_machine_left = list(self.limits_per_machine)
+
     def random_solution(self):
-        production = [10]
-        return production
+        while self.workers_hours > 0: # TODO:dodać że jeśli nie znajdzie nic więcej niż ileśtam razy to też przerywa petle
+            self.random_part()
+
+    def random_part(self):
+        part_number = random.randint(0, self.hours_per_stage.shape[1])
+        for i in range(self.hours_per_stage[0]):
+            if self.hours_per_stage[i][part_number] > self.hours_per_machine_left[i] or self.hours_per_stage[i][part_number] > self.workers_hours_left:
+                self.hours_per_machine_left[i] -= self.hours_per_stage[i][part_number]
+                self.workers_hours_left -= self.hours_per_stage[i][part_number]
+        self.production[part_number] += 1  # dodaje przedmiot do wektora rozwiązań
