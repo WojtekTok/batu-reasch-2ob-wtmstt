@@ -114,7 +114,7 @@ class Factory():
             req_worker += self.checking_time * self.production[i]
             if req_worker > self.workers_hours:
                 raise SystemError('Nie ma tyle dostępnych godzin')
-                
+
 
 
 class Solution(Factory):
@@ -132,11 +132,13 @@ class Solution(Factory):
         self.hours_per_machine_left = list(self.limits_per_machine)
         self.production = np.zeros(len(self.profit))
         self.production_error = 0
-        self.best_production = np.zeros(len(self.profit))
+        self.best_production = None
 
     def random_solution(self):
         while self.workers_hours_left > 0 and self.production_error <= 10:
             self.random_part()
+        if self.best_production is None:
+            self.best_production = self.production
         # tu wstawię zapamiętywanie lepszego rozwiązania, chociaż to będzie potrzebne jak zaczniemy właściwy algorytm
         # if self.funkcja_celu() > 
 
@@ -160,3 +162,4 @@ sol = Solution()
 sol.random_solution()
 print(sol.funkcja_celu())
 print(sol.production)
+print(sol.best_production)
