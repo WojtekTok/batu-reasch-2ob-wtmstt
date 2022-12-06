@@ -114,10 +114,7 @@ class Factory():
             req_worker += self.checking_time * self.production[i]
             if req_worker > self.workers_hours:
                 raise SystemError('Nie ma tyle dostępnych godzin')
-
-    # def random_solution(self):
-    #     production = [10] # nie wiem czy to tutaj czy do solution to wrzucic, jaki kto ma plan tak niech robi
-    #     return production
+                
 
 
 class Solution(Factory):
@@ -125,6 +122,8 @@ class Solution(Factory):
         """
         workers_hours_left: pozostałe roboczogodziny
         hours_per_machine_left: pozostałe godziny na daną maszynę
+        production_error: ograniczenie związane z faktem, ze przy małej ilości godzin nie jesteśmy w stanie zainicjować produkcji nowej części
+        best_production: najlepsze dotychczasowe rozwiązanie tej samej postaci co parametr self.production
         W tej klasie zmieniamy ilość dostępnych zasobów
         """
         super().__init__(worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
@@ -132,14 +131,19 @@ class Solution(Factory):
         self.workers_hours_left = self.workers_hours
         self.hours_per_machine_left = list(self.limits_per_machine)
         self.production = np.zeros(len(self.profit))
+        self.production_error = 0
+        self.best_production = np.zeros(len(self.profit))
 
     def random_solution(self):
-        while self.workers_hours_left > 0: # TODO:dodać że jeśli nie znajdzie nic więcej niż ileśtam razy to też przerywa petle
+        while self.workers_hours_left > 0 and self.production_error <= 10:
             self.random_part()
+        # tu wstawię zapamiętywanie lepszego rozwiązania, chociaż to będzie potrzebne jak zaczniemy właściwy algorytm
+        # if self.funkcja_celu() > 
 
     def random_part(self):
         part_number = random.randint(0, self.hours_per_stage.shape[1]-1)
         if np.sum(self.hours_per_stage[:, part_number]) + self.checking_time > self.workers_hours_left:
+            self.production_error += 1
             return
         for i in range(self.hours_per_stage.shape[0]):
             if self.hours_per_stage[i, part_number] > self.hours_per_machine_left[i]:
@@ -150,7 +154,9 @@ class Solution(Factory):
         self.workers_hours_left -= self.checking_time
         self.production[part_number] += 1  # dodaje przedmiot do wektora rozwiązań
 
+    
 
 sol = Solution()
 sol.random_solution()
-print()
+print(sol.funkcja_celu())
+print(sol.production)
