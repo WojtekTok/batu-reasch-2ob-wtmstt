@@ -1,8 +1,62 @@
 import numpy as np
 import random
 
+class Product:
+    def __init__(self, product_id, profit, time_1, time_2, time_3) -> None:
+        """
+        Uwzględniamy stałą liczbę maszyn, jednak zmienną ilość produktów. 
+        :param product_id: pozwala na identyfikację produktu na podstawie ID
+        :param profit: pozwala na zdefiniowanie przychodu za daną część
+        :param time_1: czas wymagany na pierwszym rodzaju maszyny
+        :param time_2: czas wymagany na drugim rodzaju maszyny
+        :param time_3: czas wymagany na trzecim rodzaju maszyny
+        """
+        self.product_id = product_id
+        self.profit = profit
+        self.time_1 = time_1
+        self.time_2 = time_2
+        self.time_3 = time_3
 
-class Factory:
+    def hps(self):
+        """
+        funkcja zwracająca listę godzin potrzebnych na poszczególne maszyny
+        :return: zwracana jest lista, która zawiera czas potrzebny do produkcji produktu na poszczególnych etapie
+        """
+        return [self.time_1, self.time_2, self.time_3]
+
+class Machines:
+    def __init__(self, amount_1, amount_2, amount_3, max_time_1, max_time_2, max_time_3) -> None:
+        """
+        Zakładamy, że istnieją maksymalnie 3 rodzaje maszyn.
+        :param amount_1: ilość maszyn 1-go rodzaju
+        :param amount_2: ilość maszyn 2-go rodzaju
+        :param amount_3: ilość maszyn 3-go rodzaju
+        :param max_time_1: maksymalny czas pracy maszyn 1-go rodzaju
+        :param max_time_2: maksymalny czas pracy maszyn 1-go rodzaju
+        :param max_time_3: maksymalny czas pracy maszyn 1-go rodzaju
+        """
+        self.amount_1 = amount_1
+        self.amount_2 = amount_2
+        self.amount_3 = amount_3
+        self.max_time_1 = max_time_1
+        self.max_time_2 = max_time_2
+        self.max_time_3 = max_time_3
+
+    def mps(self):
+        """
+        funkcja zwracająca ilość maszyn na danym etapie
+        :return: krotka zwracająca ilość maszyn na poszczególnym etapie
+        """
+        return (self.amount_1, self.amount_2, self.amount_3)
+
+    def lpm(self):
+        """
+        funkcja zwracająca maksymalny czas pracy na poszczególnych etapach
+        :return: krotka zawierająca maksymalny czas pracy na poszczególnych etapach
+        """
+        return (self.max_time_1, self.max_time_2, self.max_time_3)
+
+class Factory():
     default_hps = np.array([[0, 15, 25, 0],
                            [12, 6, 0, 14],
                            [10, 8, 0, 0]])
@@ -40,6 +94,26 @@ class Factory:
         for i in range(len(self.production)):
             suma += self.production[i] * self.profit[i]
         return suma
+
+    def ograniczenia(self):
+        """
+        funkcja sprawdzająca czy zachowane są odgórnie narzucone ograniczenia
+        :return: zwraca błąd gdy niezachowane jest dane ograniczenie
+        """
+        x, y = self.hours_per_stage.shape
+        requirements = np.zeros(len(self.profit))
+        req_worker = 0
+
+        for i in range(x):
+            for j in range(y):
+                requirements[i] += self.hours_per_stage[i][j] * self.production[j]
+                if requirements[i] > self.limits_per_machine:
+                    raise SystemError('Maszyna będzie pracować zbyt długo!') # TODO: zamienić SystemError na jakiś inny error, który łatwo "przechwycić
+        
+        for i in range(x):
+            req_worker += self.checking_time * self.production[i]
+            if req_worker > self.workers_hours:
+                raise SystemError('Nie ma tyle dostępnych godzin')
 
     # def random_solution(self):
     #     production = [10] # nie wiem czy to tutaj czy do solution to wrzucic, jaki kto ma plan tak niech robi
