@@ -1,5 +1,7 @@
 import numpy as np
 import random
+from copy import deepcopy
+
 
 class Product:
     def __init__(self, profit, amount_of_mt):
@@ -57,7 +59,7 @@ class Machines:
             return 0
 
 
-class Factory():
+class Factory:
     default_hps = np.array([[0, 15, 25, 0],
                            [12, 6, 0, 14],
                            [10, 8, 0, 0]])
@@ -85,6 +87,27 @@ class Factory():
         self.limits_per_machine = limits_per_machine
         self.checking_time = checking_time
         # self.best_solution = Solution()
+
+
+
+class Solution(Factory):
+    def __init__(self):
+        """
+        workers_hours_left: pozostałe roboczogodziny
+        hours_per_machine_left: pozostałe godziny na daną maszynę
+        production_error: ograniczenie związane z faktem, ze przy małej ilości godzin nie jesteśmy w stanie zainicjować produkcji nowej części
+        best_production: najlepsze dotychczasowe rozwiązanie tej samej postaci co parametr self.production
+        W tej klasie zmieniamy ilość dostępnych zasobów
+        """
+        super().__init__(worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
+                 machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10)
+        self.workers_hours_left = self.workers_hours
+        self.hours_per_machine_left = list(self.limits_per_machine)
+        self.production = np.zeros(len(self.profit))
+        self.production_error = 0
+        self.best_production = None
+        self.tabu_list = []
+        self.max_tabu_len = 10 # trzeba to przekazywac jako parametr
 
     def funkcja_celu(self):
         """
@@ -114,35 +137,20 @@ class Factory():
                 return 1
         return 0
 
-
-
-class Solution(Factory):
-    def __init__(self):
-        """
-        workers_hours_left: pozostałe roboczogodziny
-        hours_per_machine_left: pozostałe godziny na daną maszynę
-        production_error: ograniczenie związane z faktem, ze przy małej ilości godzin nie jesteśmy w stanie zainicjować produkcji nowej części
-        best_production: najlepsze dotychczasowe rozwiązanie tej samej postaci co parametr self.production
-        W tej klasie zmieniamy ilość dostępnych zasobów
-        """
-        super().__init__(worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
-                 machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10)
-        self.workers_hours_left = self.workers_hours
-        self.hours_per_machine_left = list(self.limits_per_machine)
-        self.production = np.zeros(len(self.profit))
-        self.production_error = 0
-        self.best_production = None
-
     def random_solution(self):
         while self.workers_hours_left > 0 and self.production_error <= 10:
             self.random_part()
+        self.production_error = 0
         if self.best_production is None:
-            self.best_production = self.production
+            self.best_production = deepcopy(self.production)
         # tu wstawię zapamiętywanie lepszego rozwiązania, chociaż to będzie potrzebne jak zaczniemy właściwy algorytm
         # if self.funkcja_celu() > 
 
-    def random_part(self):
-        part_number = random.randint(0, self.hours_per_stage.shape[1]-1)
+    def random_part(self, banned_part=np.inf):
+        while 1:
+            part_number = random.randint(0, self.hours_per_stage.shape[1]-1)
+            if part_number != banned_part:
+                break
         if np.sum(self.hours_per_stage[:, part_number]) + self.checking_time > self.workers_hours_left:
             self.production_error += 1
             return
@@ -154,6 +162,58 @@ class Solution(Factory):
             self.workers_hours_left -= self.hours_per_stage[i, part_number]
         self.workers_hours_left -= self.checking_time
         self.production[part_number] += 1  # dodaje przedmiot do wektora rozwiązań
+        #tu można zmienić żeby ograniczenia sprawdzałą funkcja a jeśli nie są spełnione to reverse_changes()
+
+    def change_neighbour(self, neigh_type='default'):
+        """
+        funkcja do zmiany sąsiada - zależnie od tego, jaki jest 'typ sąsiedztwa', tak zostanie zmienione rozwiązanie
+        :param neigh_type: typ sąsiedztwa, domyślnie default - jeden produkt usunięty z rozwiązania i wypełnienie
+                            pozostałych roboczogodzin innymi produktami
+        """
+        if neigh_type == 'default':
+            initial_production = deepcopy(self.production)
+            part_number = random.randint(0, self.hours_per_stage.shape[1]-1) # losuję produkt do usunięcia
+            if self.production[part_number] > 0: # sprawdzam czy w ogóle taka część ma być produkowana
+                self.production[part_number] -= 1
+                self.workers_hours_left += self.checking_time
+                for i in range(self.hours_per_stage.shape[0]):
+                    self.hours_per_machine_left[i] += self.hours_per_stage[i, part_number]
+                    self.workers_hours_left += self.hours_per_stage[i, part_number]
+                while self.workers_hours_left > 0 and self.production_error < 100: # tu można zamiast stałej dać parametr
+                    self.random_part(part_number)  # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
+                if self.production in self.tabu_list:  # jeśli to jest zabronione przejście, to odwróć zmiany
+                    self.reverse_changes(initial_production)
+                    print('zabronione')
+                else:
+                    self.tabu_list.append(self.production)  # dodaję rozwiązanie do listy tabu
+                    if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
+                        self.tabu_list.pop(0)
+                self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
+            else:
+                self.change_neighbour()
+
+    def reverse_changes(self, previous_state):
+        """
+        zmienia production do wcześniejszego stanu
+        :param previous_state: stan do którego ma wrócić production
+        """
+        for i in range(len(self.production)):
+            while self.production[i] != previous_state[i]:
+                if self.production[i] > previous_state[i]:
+                    self.production[i] -= 1
+                    self.workers_hours_left += self.checking_time
+                    for j in range(self.hours_per_stage.shape[0]):
+                        self.hours_per_machine_left[j] += self.hours_per_stage[j, i]
+                        self.workers_hours_left += self.hours_per_stage[j, i]
+                elif self.production[i] < previous_state[i]:
+                    self.production[i] += 1
+                    self.workers_hours_left -= self.checking_time
+                    for j in range(self.hours_per_stage.shape[0]):
+                        self.hours_per_machine_left[j] -= self.hours_per_stage[j, i]
+                        self.workers_hours_left -= self.hours_per_stage[j, i]
+
+    # TODO: trzeba dodać taką główną funkcję do wyszukiwania nowych sąsiadów w pętli już i ewentualnie jakiś inny sposób
+    # TODO: na wyszukiwanie nowego sąsiada
 
 #Zdefiniowanie ilości maszyn
 mach = Machines(3)
@@ -179,3 +239,8 @@ print(sol.funkcja_celu())
 print(sol.ograniczenia())
 print(sol.production)
 print(sol.best_production)
+sol.change_neighbour()
+print(sol.production)
+print(sol.funkcja_celu())
+sol.reverse_changes(sol.best_production)
+print(sol.production)
