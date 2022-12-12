@@ -139,11 +139,23 @@ class Solution(Factory):
         return 0
 
     def random_solution(self):
-        while self.workers_hours_left > 0 and self.production_error <= 10:
-            self.random_part()
-        self.production_error = 0
-        self.best_production = deepcopy(self.production)
-        self.best_funkcja_celu = self.funkcja_celu()
+        if self.best_funkcja_celu == 0:                              # wyznaczanie startowego losowego rozwiązania
+            while self.workers_hours_left > 0 and self.production_error <= 10:
+                self.random_part()
+            self.production_error = 0
+            if self.best_funkcja_celu == 0:
+                self.best_production = deepcopy(self.production)
+                self.best_funkcja_celu = self.funkcja_celu()
+        else:                                                        # wyznaczanie losowego rozwiązanie, ale nie startowego
+            self.workers_hours_left = self.workers_hours  
+            self.hours_per_machine_left = list(self.limits_per_machine)
+            self.production = [0 for _ in range(len(self.profit))]
+            while self.workers_hours_left > 0 and self.production_error <= 10:
+                self.random_part()
+            self.production_error = 0
+            if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():
+                self.best_production = deepcopy(self.production)
+                self.best_funkcja_celu = self.funkcja_celu()              
 
     def random_part(self, banned_part=np.inf):
         while 1:
@@ -242,16 +254,31 @@ class TabuSearch():
         """
         self.solution.change_neighbour()
 
-    def algorythm(self):
+    def algorythm(self, aspiration_counter=20):
         """
-        funkcja zawierająca główną pętlę algorytmu
+        funkcja zawierająca główną pętlę algorytmu, kryterium aspiracji wykona ruch do losowego rozwiązania po określonej liczbie 
+        iteracji od ostatniej aktualizacji najlepszego rozwiązania
+        :param aspiration_counter: po ilu iteracjach zastosować kryterium aspiracji
         :return: krotka zawierająca optymalny rozkład produkcji i wartość funkcji celu
         """
-        iter = 0
+        iter = 0  # liczba iteracji
+        counter = 0  # liczba iteracji od poprzedniej aktualizacji najlepszego rozwiązania
+        best = sol.best_funkcja_celu  # najlepsze rozwiązania (wartość funkcji celu)
         while iter < self.max_iter and not self.stopping_cond:
             self.next_move()
-            print(sol.production, sol.funkcja_celu(), sol.ograniczenia())
             iter += 1
+            print(sol.production, sol.funkcja_celu(), sol.ograniczenia())
+            
+            # kryterium aspiracji
+            if best == sol.best_funkcja_celu:
+                counter += 1
+                if counter == aspiration_counter:
+                    sol.random_solution()
+                    counter = 0
+            else:
+                best = sol.best_funkcja_celu
+                counter = 0
+            print(counter)
         return self.solution.best_production, self.solution.best_funkcja_celu
         
 
@@ -290,4 +317,4 @@ sol.random_solution()
 # print('Poprzednia produkcja: ', sol.production)
 
 ts = TabuSearch(sol)
-print(ts.algorythm())
+print(ts.algorythm(10))
