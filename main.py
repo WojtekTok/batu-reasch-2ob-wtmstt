@@ -86,26 +86,27 @@ class Factory:
         self.machines_per_stage = machines_per_stage
         self.limits_per_machine = limits_per_machine
         self.checking_time = checking_time
-        # self.best_solution = Solution()
 
 
 
 class Solution(Factory):
     def __init__(self):
         """
-        workers_hours_left: pozostałe roboczogodziny
-        hours_per_machine_left: pozostałe godziny na daną maszynę
-        production_error: ograniczenie związane z faktem, ze przy małej ilości godzin nie jesteśmy w stanie zainicjować produkcji nowej części
-        best_production: najlepsze dotychczasowe rozwiązanie tej samej postaci co parametr self.production
+        :param workers_hours_left: pozostałe roboczogodziny
+        :param hours_per_machine_left: pozostałe godziny na daną maszynę
+        :param production_error: ograniczenie związane z faktem, ze przy małej ilości godzin nie jesteśmy w stanie zainicjować produkcji nowej części
+        :param best_production: najlepsze dotychczasowe rozwiązanie tej samej postaci co parametr self.production
+        :param best_funkcja_celu: funkcja celu z najlepszego rozwiązania
         W tej klasie zmieniamy ilość dostępnych zasobów
         """
         super().__init__(worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
                  machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10)
         self.workers_hours_left = self.workers_hours
         self.hours_per_machine_left = list(self.limits_per_machine)
-        self.production = np.zeros(len(self.profit))
+        self.production = [0 for _ in range(len(self.profit))]
+        self.best_production = [0 for _ in range(len(self.profit))]
+        self.best_funkcja_celu = 0
         self.production_error = 0
-        self.best_production = None
         self.tabu_list = []
         self.max_tabu_len = 10 # trzeba to przekazywac jako parametr
 
@@ -141,10 +142,8 @@ class Solution(Factory):
         while self.workers_hours_left > 0 and self.production_error <= 10:
             self.random_part()
         self.production_error = 0
-        if self.best_production is None:
-            self.best_production = deepcopy(self.production)
-        # tu wstawię zapamiętywanie lepszego rozwiązania, chociaż to będzie potrzebne jak zaczniemy właściwy algorytm
-        # if self.funkcja_celu() > 
+        self.best_production = deepcopy(self.production)
+        self.best_funkcja_celu = self.funkcja_celu()
 
     def random_part(self, banned_part=np.inf):
         while 1:
@@ -156,6 +155,7 @@ class Solution(Factory):
             return
         for i in range(self.hours_per_stage.shape[0]):
             if self.hours_per_stage[i, part_number] > self.hours_per_machine_left[i]:
+                self.production_error += 1
                 return
         for i in range(self.hours_per_stage.shape[0]):
             self.hours_per_machine_left[i] -= self.hours_per_stage[i, part_number]
@@ -179,13 +179,16 @@ class Solution(Factory):
                 for i in range(self.hours_per_stage.shape[0]):
                     self.hours_per_machine_left[i] += self.hours_per_stage[i, part_number]
                     self.workers_hours_left += self.hours_per_stage[i, part_number]
-                while self.workers_hours_left > 0 and self.production_error < 100: # tu można zamiast stałej dać parametr
+                while self.workers_hours_left > 0 and self.production_error < 10: # tu można zamiast stałej dać parametr
                     self.random_part(part_number)  # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
                 if self.production in self.tabu_list:  # jeśli to jest zabronione przejście, to odwróć zmiany
                     self.reverse_changes(initial_production)
-                    print('zabronione')
+                    # print('zabronione')
                 else:
-                    self.tabu_list.append(self.production)  # dodaję rozwiązanie do listy tabu
+                    self.tabu_list.append(deepcopy(self.production))  # dodaję rozwiązanie do listy tabu
+                    if self.funkcja_celu() > self.best_funkcja_celu:  # zapamiętywanie najlepszego rozwiązania
+                        self.best_production = deepcopy(self.production)
+                        self.best_funkcja_celu = self.funkcja_celu()
                     if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
                         self.tabu_list.pop(0)
                 self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
@@ -215,6 +218,44 @@ class Solution(Factory):
     # TODO: trzeba dodać taką główną funkcję do wyszukiwania nowych sąsiadów w pętli już i ewentualnie jakiś inny sposób
     # TODO: na wyszukiwanie nowego sąsiada
 
+
+class TabuSearch():
+    def __init__(self, solution, max_iter=100, stopping_cond=None, neigh_type='default', aspiration_criteria='default'):
+        """
+        :param solution: startowe rozwiązanie, obiekt klasy Solution
+        :param max_tabu_len: wielkość listy tabu
+        :param max_iter: maksymalna liczba iteracji
+        :param stopping_cond: warunek przerywający działanie algorytmu, inny niż liczba iteracji
+        :param neighbourhood: rodzaj stosowanego sąsiedztwa
+        :param aspiration_criteria: rodzaj stosowanego kryterium aspiracji
+        """
+        self.solution = solution
+        self.max_tabu_len = solution.max_tabu_len
+        self.stopping_cond = stopping_cond
+        self.max_iter = max_iter
+        self.neigh_type = neigh_type
+        self.aspiration_criteria = aspiration_criteria
+
+    def next_move(self):
+        """
+        funkcja wykonująca krok
+        """
+        self.solution.change_neighbour()
+
+    def algorythm(self):
+        """
+        funkcja zawierająca główną pętlę algorytmu
+        :return: krotka zawierająca optymalny rozkład produkcji i wartość funkcji celu
+        """
+        iter = 0
+        while iter < self.max_iter and not self.stopping_cond:
+            self.next_move()
+            print(sol.production, sol.funkcja_celu(), sol.ograniczenia())
+            iter += 1
+        return self.solution.best_production, self.solution.best_funkcja_celu
+        
+
+
 #Zdefiniowanie ilości maszyn
 mach = Machines(3)
 machines_per_stage = mach.amount_of_specific_type(3, 3, 2)
@@ -233,14 +274,20 @@ vec4 = prod4.hps(0, 14, 0)
 hps_matrix = prod1.hps_matrix(vec1, vec2, vec3, vec4)
 profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, prod4.profit)
 
+# print(profits)
+# print(hps_matrix)
+
 sol = Solution()
 sol.random_solution()
-print(sol.funkcja_celu())
-print(sol.ograniczenia())
-print(sol.production)
-print(sol.best_production)
-sol.change_neighbour()
-print(sol.production)
-print(sol.funkcja_celu())
-sol.reverse_changes(sol.best_production)
-print(sol.production)
+# print('Funkcja celu:', sol.funkcja_celu())
+# print('Jak 0 to ok: ', sol.ograniczenia())
+# print('Ile jakich części: ', sol.production)
+# # print(sol.best_production)
+# sol.change_neighbour()
+# print('Sąsiad:', sol.production)
+# print('Funkcja celu:', sol.funkcja_celu())
+# sol.reverse_changes(sol.best_production)
+# print('Poprzednia produkcja: ', sol.production)
+
+ts = TabuSearch(sol)
+print(ts.algorythm())
