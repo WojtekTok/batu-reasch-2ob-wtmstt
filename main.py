@@ -186,7 +186,7 @@ class Solution(Factory):
                     # print('zabronione')
                 else:
                     self.tabu_list.append(deepcopy(self.production))  # dodaję rozwiązanie do listy tabu
-                    if self.funkcja_celu() > self.best_funkcja_celu:  # zapamiętywanie najlepszego rozwiązania
+                    if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():  # zapamiętywanie najlepszego rozwiązania
                         self.best_production = deepcopy(self.production)
                         self.best_funkcja_celu = self.funkcja_celu()
                     if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
