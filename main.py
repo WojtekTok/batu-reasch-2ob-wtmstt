@@ -103,13 +103,15 @@ class Solution(Factory):
         super().__init__(worker_hours=worker_hours, hours_per_stage=hours_per_stage, profit=profit,
                  machines_per_stage=machines_per_stage, limits_per_machine=limits_per_machine, checking_time=checking_time)
         self.workers_hours_left = self.workers_hours
-        self.hours_per_machine_left = list(self.limits_per_machine)
+        self.hours_per_machine_left = [5 * 8 * self.machines_per_stage[i] for i in range(len(self.machines_per_stage))]#list(self.limits_per_machine)
         self.production = [0 for _ in range(len(self.profit))]
         self.best_production = [0 for _ in range(len(self.profit))]
         self.best_funkcja_celu = 0
         self.production_error = 0
         self.tabu_list = []
         self.max_tabu_len = 10 # trzeba to przekazywac jako parametr
+        self.part_probability = self.calculate_probability()
+        self.reversed_probability = self.calculate_reversed_probability()
 
     def funkcja_celu(self):
         """
@@ -133,13 +135,19 @@ class Solution(Factory):
             for j in range(self.hours_per_stage.shape[1]):
                 requirements[i] += self.hours_per_stage[i][j] * self.production[j]
                 if requirements[i] > 5 * 8 * self.machines_per_stage[i]: # 5 (dni tygodnia) * 8 (roboczogodzin dziennie) * ilość maszyn na danym etapie
+                    print('zostało godzin na maszyne', self.hours_per_machine_left)
                     return 1
             req_worker += self.checking_time * self.production[i] + requirements[i]
             if req_worker > self.workers_hours:
+                print('zostało godzin: ', self.workers_hours_left)
                 return 1
         return 0
 
     def random_solution(self):
+        """
+        znajdowanie pierwszego, losowego rozwiązania
+        :return:
+        """
         if self.best_funkcja_celu == 0:                              # wyznaczanie startowego losowego rozwiązania
             while self.workers_hours_left > 0 and self.production_error <= 10:
                 self.random_part()
@@ -158,9 +166,18 @@ class Solution(Factory):
                 self.best_production = deepcopy(self.production)
                 self.best_funkcja_celu = self.funkcja_celu()              
 
-    def random_part(self, banned_part=np.inf):
+    def random_part(self, banned_part=np.inf, type='default'):
+        """
+        funkcja dodająca losową część do rozwiązania
+        :param banned_part: część której nie można wybrać
+        :param type: typ wybierania części - losowy lub deterministyczny
+        :return:
+        """
         while 1:
-            part_number = random.randint(0, self.hours_per_stage.shape[1]-1)
+            if type == 'default':
+                part_number = random.randint(0, self.hours_per_stage.shape[1]-1)
+            elif type == 'deterministic':
+                part_number = np.random.choice(np.arange(0, len(self.profit)), p=self.part_probability)
             if part_number != banned_part:
                 break
         if np.sum(self.hours_per_stage[:, part_number]) + self.checking_time > self.workers_hours_left:
@@ -177,39 +194,38 @@ class Solution(Factory):
         self.production[part_number] += 1  # dodaje przedmiot do wektora rozwiązań
         #tu można zmienić żeby ograniczenia sprawdzałą funkcja a jeśli nie są spełnione to reverse_changes()
 
-    def change_neighbour(self, neigh_type='default'):
+    def change_neighbour(self, neigh_type='default', del_selection='default'):
         """
         funkcja do zmiany sąsiada - zależnie od tego, jaki jest 'typ sąsiedztwa', tak zostanie zmienione rozwiązanie
         :param neigh_type: typ sąsiedztwa, domyślnie default - jeden produkt usunięty z rozwiązania i wypełnienie
                             pozostałych roboczogodzin innymi produktami
+        :param del_selection: sposób wybierania części do usunięcia z produkcji
         """
-        if neigh_type == 'default':
-            initial_production = deepcopy(self.production)
+        initial_production = deepcopy(self.production)
+        if del_selection == 'default':
             part_number = random.randint(0, self.hours_per_stage.shape[1]-1) # losuję produkt do usunięcia
-            if self.production[part_number] > 0: # sprawdzam czy w ogóle taka część ma być produkowana
-                self.production[part_number] -= 1
-                self.workers_hours_left += self.checking_time
-                for i in range(self.hours_per_stage.shape[0]):
-                    self.hours_per_machine_left[i] += self.hours_per_stage[i, part_number]
-                    self.workers_hours_left += self.hours_per_stage[i, part_number]
-                while self.workers_hours_left > 0 and self.production_error < 10: # tu można zamiast stałej dać parametr
-                    self.random_part(part_number)  # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
-                if self.production in self.tabu_list:  # jeśli to jest zabronione przejście, to odwróć zmiany
-                    self.reverse_changes(initial_production)
-                    # print('zabronione')
-                else:
-                    self.tabu_list.append(deepcopy(self.production))  # dodaję rozwiązanie do listy tabu
-                    if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():  # zapamiętywanie najlepszego rozwiązania
-                        self.best_production = deepcopy(self.production)
-                        self.best_funkcja_celu = self.funkcja_celu()
-                    if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
-                        self.tabu_list.pop(0)
-                self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
+        elif del_selection == 'deterministic':
+            part_number = np.random.choice(np.arange(0, len(self.profit)), p=self.reversed_probability)
+        if self.production[part_number] > 0: # sprawdzam czy w ogóle taka część ma być produkowana
+            self.production[part_number] -= 1
+            self.workers_hours_left += self.checking_time
+            for i in range(self.hours_per_stage.shape[0]):
+                self.hours_per_machine_left[i] += self.hours_per_stage[i, part_number]
+                self.workers_hours_left += self.hours_per_stage[i, part_number]
+            while self.workers_hours_left > 0 and self.production_error < 10: # tu można zamiast stałej dać parametr
+                self.random_part(part_number, type=neigh_type) # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
+            if self.production in self.tabu_list or self.ograniczenia():  # jeśli to jest zabronione przejście, to odwróć zmiany
+                self.reverse_changes(initial_production)
             else:
-                self.change_neighbour()
-
-        if neigh_type == 'deterministic':
-            pass
+                self.tabu_list.append(deepcopy(self.production))  # dodaję rozwiązanie do listy tabu
+                if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():  # zapamiętywanie najlepszego rozwiązania
+                    self.best_production = deepcopy(self.production)
+                    self.best_funkcja_celu = self.funkcja_celu()
+                if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
+                    self.tabu_list.pop(0)
+            self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
+        else:
+            self.change_neighbour(neigh_type=neigh_type)
 
     def reverse_changes(self, previous_state):
         """
@@ -232,16 +248,27 @@ class Solution(Factory):
                         self.workers_hours_left -= self.hours_per_stage[j, i]
 
     def calculate_probability(self):
-        hours_sum_per_part = []  # suma godzin dla danej czesci
+        probab = [0 for _ in range(len(self.profit))]  # suma godzin dla danej czesci
+        suma = 0
         for i in range(len(self.profit)):
             for machines in range(len(self.machines_per_stage)):
-                pass
-                # TODO: wyliczyć sume, podzielić przez czas, kazdy ma swoje prawdopodobienstwo i elo
+                probab[i] += self.hours_per_stage[machines, i]
+            probab[i] = self.profit[i] / probab[i]
+            suma += probab[i]
+        for i in range(len(probab)):
+            probab[i] /= suma
+        return probab
 
-
-
-    # TODO: trzeba dodać taką główną funkcję do wyszukiwania nowych sąsiadów w pętli już i ewentualnie jakiś inny sposób
-    # TODO: na wyszukiwanie nowego sąsiada
+    def calculate_reversed_probability(self):
+        """
+        funkcja obliczająca w miarę odwrotne prawdopodoieństwo - idealnie byc nie musi :D
+        :return: odwrotne prawdopodobieństwo
+        """
+        avg_prob = 1/len(self.profit)
+        rev_prob = [0 for _ in range(len(self.profit))]
+        for i in range(len(self.part_probability)):
+            rev_prob[i] = avg_prob - (self.part_probability[i]-avg_prob)
+        return rev_prob
 
 
 class TabuSearch():
@@ -265,7 +292,7 @@ class TabuSearch():
         """
         funkcja wykonująca krok
         """
-        self.solution.change_neighbour()
+        self.solution.change_neighbour(neigh_type='deterministic', del_selection='deterministic')
 
     def algorythm(self, aspiration_counter=20):
         """
