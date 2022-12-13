@@ -90,7 +90,8 @@ class Factory:
 
 
 class Solution(Factory):
-    def __init__(self):
+    def __init__(self, worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
+                 machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10):
         """
         :param workers_hours_left: pozostałe roboczogodziny
         :param hours_per_machine_left: pozostałe godziny na daną maszynę
@@ -99,8 +100,8 @@ class Solution(Factory):
         :param best_funkcja_celu: funkcja celu z najlepszego rozwiązania
         W tej klasie zmieniamy ilość dostępnych zasobów
         """
-        super().__init__(worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
-                 machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10)
+        super().__init__(worker_hours=worker_hours, hours_per_stage=hours_per_stage, profit=profit,
+                 machines_per_stage=machines_per_stage, limits_per_machine=limits_per_machine, checking_time=checking_time)
         self.workers_hours_left = self.workers_hours
         self.hours_per_machine_left = list(self.limits_per_machine)
         self.production = [0 for _ in range(len(self.profit))]
@@ -207,6 +208,9 @@ class Solution(Factory):
             else:
                 self.change_neighbour()
 
+        if neigh_type == 'deterministic':
+            pass
+
     def reverse_changes(self, previous_state):
         """
         zmienia production do wcześniejszego stanu
@@ -226,6 +230,15 @@ class Solution(Factory):
                     for j in range(self.hours_per_stage.shape[0]):
                         self.hours_per_machine_left[j] -= self.hours_per_stage[j, i]
                         self.workers_hours_left -= self.hours_per_stage[j, i]
+
+    def calculate_probability(self):
+        hours_sum_per_part = []  # suma godzin dla danej czesci
+        for i in range(len(self.profit)):
+            for machines in range(len(self.machines_per_stage)):
+                pass
+                # TODO: wyliczyć sume, podzielić przez czas, kazdy ma swoje prawdopodobienstwo i elo
+
+
 
     # TODO: trzeba dodać taką główną funkcję do wyszukiwania nowych sąsiadów w pętli już i ewentualnie jakiś inny sposób
     # TODO: na wyszukiwanie nowego sąsiada
