@@ -98,6 +98,8 @@ class Solution(Factory):
         :param production_error: ograniczenie związane z faktem, ze przy małej ilości godzin nie jesteśmy w stanie zainicjować produkcji nowej części
         :param best_production: najlepsze dotychczasowe rozwiązanie tej samej postaci co parametr self.production
         :param best_funkcja_celu: funkcja celu z najlepszego rozwiązania
+        :param best5_productions: tablica zawierająca (5) krotek z najlepszymi liniami produkcyjnymi, ich funkcją cel, roboczogodzinami oraz godzina na daną maszynę
+
         W tej klasie zmieniamy ilość dostępnych zasobów
         """
         super().__init__(worker_hours=worker_hours, hours_per_stage=hours_per_stage, profit=profit,
@@ -109,6 +111,7 @@ class Solution(Factory):
         self.best_funkcja_celu = 0
         self.production_error = 0
         self.tabu_list = []
+        self.best5_productions = [(0, 0) for _ in range(5)]
         self.max_tabu_len = 10 # trzeba to przekazywac jako parametr
         self.part_probability = self.calculate_probability()
         self.reversed_probability = self.calculate_reversed_probability()
@@ -164,7 +167,23 @@ class Solution(Factory):
             self.production_error = 0
             if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():
                 self.best_production = deepcopy(self.production)
-                self.best_funkcja_celu = self.funkcja_celu()              
+                self.best_funkcja_celu = self.funkcja_celu()    
+
+    def random_best_solution(self):
+        """
+        wybieram losowe spośród kilku najlepszych rozwiązań i zastępuje nim obecne rozwiązanie
+        """          
+        while 1:
+            random_no = random.randint(0, len(self.best5_productions) - 1)
+            if self.best5_productions[random_no][0] != 0:
+                break
+        random_sol = self.best5_productions[random_no]
+        self.best5_productions[random_no] = (0, 0, 0, 0)
+
+        self.production = deepcopy(random_sol[1])
+        self.workers_hours_left = deepcopy(random_sol[2])
+        self.hours_per_machine_left = deepcopy(random_sol[3])
+        self.best5_productions = sorted(self.best5_productions, reverse=True)
 
     def random_part(self, banned_part=np.inf, type='default'):
         """
@@ -223,6 +242,19 @@ class Solution(Factory):
                     self.best_funkcja_celu = self.funkcja_celu()
                 if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
                     self.tabu_list.pop(0)
+                
+                if self.funkcja_celu() > self.best5_productions[-1][0] and not self.ograniczenia():    # zapamiętywanie kilku najlepszych rozwiązań, potem użwamy do kryterium aspiracji
+                    already_on_list = False
+                    for i in range(len(self.best5_productions)):
+                        if self.production == self.best5_productions[i][1]:
+                            already_on_list = True
+                            break
+                    if not already_on_list:
+                        self.best5_productions[-1] = (self.funkcja_celu(), deepcopy(self.production), deepcopy(self.workers_hours_left), deepcopy(self.hours_per_machine_left))
+                        self.best5_productions = sorted(self.best5_productions, reverse=True)
+                    else:
+                        already_on_list = False
+
             self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
         else:
             self.change_neighbour(neigh_type=neigh_type)
@@ -272,11 +304,12 @@ class Solution(Factory):
 
 
 class TabuSearch():
-    def __init__(self, solution, max_iter=100, stopping_cond=None, neigh_type='default', aspiration_criteria='default'):
+    def __init__(self, solution, max_iter, aspiration_threshold, stopping_cond=None, neigh_type='default', aspiration_criteria='random'):
         """
         :param solution: startowe rozwiązanie, obiekt klasy Solution
         :param max_tabu_len: wielkość listy tabu
         :param max_iter: maksymalna liczba iteracji
+        :param aspiration_threshold: po ilu iteracjach może nastąpić reset rozwiązania
         :param stopping_cond: warunek przerywający działanie algorytmu, inny niż liczba iteracji
         :param neighbourhood: rodzaj stosowanego sąsiedztwa
         :param aspiration_criteria: rodzaj stosowanego kryterium aspiracji
@@ -287,6 +320,7 @@ class TabuSearch():
         self.max_iter = max_iter
         self.neigh_type = neigh_type
         self.aspiration_criteria = aspiration_criteria
+        self.aspiration_threshold = aspiration_threshold
 
     def next_move(self):
         """
@@ -294,11 +328,10 @@ class TabuSearch():
         """
         self.solution.change_neighbour(neigh_type='deterministic', del_selection='deterministic')
 
-    def algorythm(self, aspiration_counter=20):
+    def algorythm(self):
         """
         funkcja zawierająca główną pętlę algorytmu, kryterium aspiracji wykona ruch do losowego rozwiązania po określonej liczbie 
         iteracji od ostatniej aktualizacji najlepszego rozwiązania
-        :param aspiration_counter: po ilu iteracjach zastosować kryterium aspiracji
         :return: krotka zawierająca optymalny rozkład produkcji i wartość funkcji celu
         """
         iter = 0  # liczba iteracji
@@ -310,15 +343,25 @@ class TabuSearch():
             print(sol.production, sol.funkcja_celu(), sol.ograniczenia())
             
             # kryterium aspiracji
-            if best == sol.best_funkcja_celu:
-                counter += 1
-                if counter == aspiration_counter:
-                    sol.random_solution()
+            if self.aspiration_criteria == 'random':
+                if best == sol.best_funkcja_celu:
+                    counter += 1
+                    if counter == self.aspiration_threshold:
+                        sol.random_solution()
+                        counter = 0
+                else:
+                    best = sol.best_funkcja_celu
                     counter = 0
-            else:
-                best = sol.best_funkcja_celu
-                counter = 0
-            print(counter)
+            # kryterium aspiracji, które idzie do jednego z najlepszych rozwiązań
+            elif self.aspiration_criteria == 'random_best':
+                if best == sol.best_funkcja_celu:
+                    counter += 1
+                    if counter == self.aspiration_threshold:
+                        sol.random_best_solution()
+                        counter = 0
+                else:
+                    best = sol.best_funkcja_celu
+                    counter = 0
         return self.solution.best_production, self.solution.best_funkcja_celu
         
 
@@ -346,15 +389,6 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 
 sol = Solution()
 sol.random_solution()
-# print('Funkcja celu:', sol.funkcja_celu())
-# print('Jak 0 to ok: ', sol.ograniczenia())
-# print('Ile jakich części: ', sol.production)
-# # print(sol.best_production)
-# sol.change_neighbour()
-# print('Sąsiad:', sol.production)
-# print('Funkcja celu:', sol.funkcja_celu())
-# sol.reverse_changes(sol.best_production)
-# print('Poprzednia produkcja: ', sol.production)
 
-ts = TabuSearch(sol)
-print(ts.algorythm(10))
+ts = TabuSearch(solution=sol, max_iter=100, aspiration_threshold=10, aspiration_criteria='random_best')
+print(ts.algorythm())
