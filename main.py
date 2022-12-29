@@ -1,12 +1,13 @@
 import numpy as np
 import random
+import tkinter as tk
 from copy import deepcopy
 
 
 class Product:
     def __init__(self, profit, amount_of_mt):
         """
-        Uwzględniamy stałą liczbę maszyn, jednak zmienną ilość produktów. 
+        Uwzględniamy zmienną liczbę maszyn oraz zmienną ilość produktów. 
         :param profit: pozwala na zdefiniowanie przychodu za daną część
         :param amount_of_mt: ilość rodzajów maszyn, bezpośrednio związana z klasą Machines
         """
@@ -16,6 +17,7 @@ class Product:
     def hps(self, *args):
         """
         funkcja zwracająca listę godzin potrzebnych na poszczególne maszyny
+        :param *args: jako argument podawana jest krotka przedstawiająca, ilość czasu potrzebnego na produkcję danego rodzaju produktu 
         :return: zwracana jest lista, która zawiera czas potrzebny do produkcji produktu na poszczególnych etapie
         """
         time_vector = list(args)
@@ -27,6 +29,7 @@ class Product:
     def hps_matrix(self, *args):
         """
         funkcja łączy podane w parametrach wektory w macierz, w tym przypadku łączymy wektory transponowane z funkcji hps
+        :param *args: podawane są wektory, które wykorzystane są następnie do połączenia i utworzenia macierzy
         :return: zwraca macierz wektorów, które określają czas potrzebny na poszczególny etap
         """
         return np.column_stack(args)
@@ -34,6 +37,7 @@ class Product:
     def profit_all_products(self, *args):
         """
         funkcja zwraca krotkę, zawierającą przychód osiągalny z poszczególnych części
+        :param *args: wprowadzana jest krotka, przedstawiająca przychód z poszczególnych produktów
         :return: zwraca krotkę, zawierającą przychód z poszczególnych części
         """
         return args
@@ -50,6 +54,7 @@ class Machines:
     def amount_of_specific_type(self, *args):
         """
         funkcja pozwalająca na wprowadzenie ilości urządzeń danego rodzaju dostępnych w fabrycę
+        :param *args:
         :return: zwraca krotkę, liczb maszyn dostępnych na podanych kolejno etapach, zwraca 0 w przypadku gdy nie podano, wartości któregoś z parametrów lub podano ich za dużo
         """
         amount_tuple = args
@@ -58,6 +63,27 @@ class Machines:
         else:
             return 0
 
+class Workers:
+    def __init__(self, amount_of_workers, checking_time, days_of_work = 5, hours_per_day = 8):
+        """
+        Zakładamy zmienną liczbę pracowników oraz zmienny tydzień pracy, możliwa modyfikacja również parametru odpowiedzialnego za sprawdzanie jakości
+        :param amount_of_workers: ilość dostępnych pracowników
+        :param checking_time: czas potrzebny na sprawdzenie jakości
+        :param days_of_work: dni pracy
+        :param hours_per_day: godziny dziennie poświecone na pracę przez pracownika
+        """
+        self.amount_of_workers = amount_of_workers
+        self.days_of_work = days_of_work
+        self.hours_per_day = hours_per_day
+        self.checking_time = checking_time
+    
+    def worker_hours(self):
+        """
+        funkcja zwraca ilość godzin możliwych do przeznaczenia na produkcję w fabryce
+        :return: zwracana jest ilość dostępnych godzin zasobów ludzkich
+        """
+        return self.amount_of_workers * self.days_of_work * self.hours_per_day
+        
 
 class Factory:
     default_hps = np.array([[0, 15, 25, 0],
@@ -70,8 +96,8 @@ class Factory:
 
     default_lpm = (150, 140, 90)
 
-    def __init__(self, worker_hours=400, hours_per_stage=default_hps, profit=default_profit,
-                 machines_per_stage=default_mps, limits_per_machine=default_lpm, checking_time=10):
+    def __init__(self, hours_per_stage=default_hps, profit=default_profit,
+                 machines_per_stage=default_mps, limits_per_machine=default_lpm, checking_time=10, worker_hours=400):
         """
         :param worker_hours: zamiast przeliczać pracowników podajemy wprost ile godzin wypracują w sumie
         :param hours_per_stage: macierz zawierająca ile godzin trzeba poświęcić na danym etapie dla danej części
@@ -90,8 +116,8 @@ class Factory:
 
 
 class Solution(Factory):
-    def __init__(self, worker_hours=400, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
-                 machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10):
+    def __init__(self, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
+                 machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10, worker_hours=400, days_of_work = 5, hours_per_day = 8):
         """
         :param workers_hours_left: pozostałe roboczogodziny
         :param hours_per_machine_left: pozostałe godziny na daną maszynę
@@ -105,7 +131,7 @@ class Solution(Factory):
         super().__init__(worker_hours=worker_hours, hours_per_stage=hours_per_stage, profit=profit,
                  machines_per_stage=machines_per_stage, limits_per_machine=limits_per_machine, checking_time=checking_time)
         self.workers_hours_left = self.workers_hours
-        self.hours_per_machine_left = [5 * 8 * self.machines_per_stage[i] for i in range(len(self.machines_per_stage))]#list(self.limits_per_machine)
+        self.hours_per_machine_left = [days_of_work * hours_per_day * self.machines_per_stage[i] for i in range(len(self.machines_per_stage))]#list(self.limits_per_machine)
         self.production = [0 for _ in range(len(self.profit))]
         self.best_production = [0 for _ in range(len(self.profit))]
         self.best_funkcja_celu = 0
@@ -115,6 +141,8 @@ class Solution(Factory):
         self.max_tabu_len = 10 # trzeba to przekazywac jako parametr
         self.part_probability = self.calculate_probability()
         self.reversed_probability = self.calculate_reversed_probability()
+        self.day_of_work = days_of_work
+        self.hours_per_day = hours_per_day
 
     def funkcja_celu(self):
         """
@@ -137,7 +165,7 @@ class Solution(Factory):
         for i in range(self.hours_per_stage.shape[0]):
             for j in range(self.hours_per_stage.shape[1]):
                 requirements[i] += self.hours_per_stage[i][j] * self.production[j]
-                if requirements[i] > 5 * 8 * self.machines_per_stage[i]: # 5 (dni tygodnia) * 8 (roboczogodzin dziennie) * ilość maszyn na danym etapie
+                if requirements[i] > self.hours_per_day * self.day_of_work * self.machines_per_stage[i]: # 5 (dni tygodnia) * 8 (roboczogodzin dziennie) * ilość maszyn na danym etapie
                     print('zostało godzin na maszyne', self.hours_per_machine_left)
                     return 1
             req_worker += self.checking_time * self.production[i] + requirements[i]
@@ -365,10 +393,12 @@ class TabuSearch():
         return self.solution.best_production, self.solution.best_funkcja_celu
         
 
+#Zdefiniowanie pracowników
+work = Workers(10, 10)
 
 #Zdefiniowanie ilości maszyn
 mach = Machines(3)
-machines_per_stage = mach.amount_of_specific_type(3, 3, 2)
+mpt = mach.amount_of_specific_type(3, 3, 2)
 
 #Zdefiniowanie produktów
 prod1 = Product(600, mach.types)
@@ -387,7 +417,8 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 # print(profits)
 # print(hps_matrix)
 
-sol = Solution()
+#Korzystamy już z wpisywanych wartości
+sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work.worker_hours(), days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
 
 ts = TabuSearch(solution=sol, max_iter=100, aspiration_threshold=10, aspiration_criteria='random_best')
