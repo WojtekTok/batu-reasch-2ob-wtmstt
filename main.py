@@ -57,7 +57,8 @@ class Machines:
         :param *args:
         :return: zwraca krotkę, liczb maszyn dostępnych na podanych kolejno etapach, zwraca 0 w przypadku gdy nie podano, wartości któregoś z parametrów lub podano ich za dużo
         """
-        amount_tuple = args
+        amount_tuple = args[0]
+        print(amount_tuple)
         if len(amount_tuple) == self.types:
             return amount_tuple
         else:
@@ -398,7 +399,8 @@ work = Workers(10, 10)
 
 #Zdefiniowanie ilości maszyn
 mach = Machines(3)
-mpt = mach.amount_of_specific_type(3, 3, 2)
+mpt_list = [3,3,2]
+mpt = mach.amount_of_specific_type(mpt_list)
 
 #Zdefiniowanie produktów
 prod1 = Product(600, mach.types)
