@@ -1,10 +1,11 @@
 from main import *
-import tkinter as tk
 from tkinter import messagebox
+import tkinter as tk
+from PIL import Image, ImageTk
 
 class Gui():
 
-    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], hps_matrix = [], aspiration='random', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10):
+    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], hps_matrix = [], aspiration='random', tabu_search = 'default', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10):
         """
         Zdefiniowanie zmiennych tak, żeby mieć do nich dostęp w całej klasie
         :param worker: instancja klasy Workers
@@ -12,9 +13,13 @@ class Gui():
         :param prod: instancja klasy Product
         :param workers_hours: dostepny czas pracownikow
         :param amt_tuple: amount of types, krotka zawierająca ilość maszyn danego rodzaju
-        :param amt_products: amount of products, lista zawierająca informację o produktach
         :param profits: lista zawierająca zysk z poszczególnych produktów
         :param hps_matrix: macierz zawierająca czas potrzebny na wykonanie produktów na poszczególnym etapie
+        :param aspiration: pozwala na wybranie rodzaju kryterium aspiracji
+        :param ts: pozwala na definiowanie rodzaju potencjalnych zmian listy tabu
+        :param del_selection: pozwala na wybranie rodzaju usuwania elementów
+        :param neigh_type: pozwala na wybranie rodzaju sasiedztwa
+        :param sol: intancja klasy Solution
         :param max_iter: maksymalna ilosc iteracji
         :param threshold: threshold
         """
@@ -26,11 +31,13 @@ class Gui():
         self.profits = profits
         self.hps_matrix = hps_matrix
         self.aspiration = aspiration
+        self.ts = tabu_search
         self.del_selection = del_selection
         self.neigh_type = neigh_type
         self.sol = sol
         self.max_iter = max_iter
         self.threshold = threshold
+
 
         #GUI
         self.root = tk.Tk()
@@ -38,9 +45,10 @@ class Gui():
         self.root.geometry("800x600")
         self.root.resizable(width=False, height=False)
 
-        #Konfiguracja układu GUI
-        self.root.rowconfigure(0, weight=3)
-        self.root.columnconfigure([0,1,2,3], weight=3)
+        ico = Image.open('ikona.jpg')
+        photo = ImageTk.PhotoImage(ico)
+        self.root.wm_iconphoto(False, photo)
+
 
         #Zmienne do checkbox'ow
         self.default_aspiration = tk.IntVar()
@@ -51,6 +59,24 @@ class Gui():
 
         self.default_neigh = tk.IntVar()
         self.deterministic_neigh = tk.IntVar()
+
+        self.default_ts = tk.IntVar()
+        self.deterministic_ts = tk.IntVar()
+
+
+        #Wczytywanie danych z pliku i zapisywanie danych do pliku
+        """
+        :param button_load: wczytanie danych do pliku txt
+        :param button_save: zapisywanie danych do pliku txt
+        :param show_data: pozwala na zobaczenie aktualnych wartości zmiennych
+        """
+
+        #Buttons
+        self.button_load = tk.Button(self.root, text='Load from file', relief=tk.RAISED, command = self.load_from_file).place(x=5, y=5)
+
+        self.button_save = tk.Button(self.root, text='Save to file', relief=tk.RAISED, command=self.save_to_file).place(x=105, y=5)
+
+        self.button_show_data = tk.Button(self.root, text='Show data', relief=tk.RAISED, command=self.new_window).place(x=605, y=5)
 
 
         #Pierwsza część modyfikowalna - utworzenie instancji klasy Workers
@@ -63,34 +89,25 @@ class Gui():
         """
 
         #Labels
-        self.label_worker = tk.Label(self.root, text='Enter the number of workers:')
-        self.label_worker.grid(row=0, column=0)
+        self.label_worker = tk.Label(self.root, text='Enter the number of workers:').place(x=5, y=40)
 
-        self.label_ct = tk.Label(self.root, text='Enter time required to check time:')
-        self.label_ct.grid(row=0, column=1)
+        self.label_ct = tk.Label(self.root, text='Enter time required to check time:').place(x=205, y=40)
 
-        self.label_dow = tk.Label(self.root, text='Enter days of work:')
-        self.label_dow.grid(row=0, column=2)
+        self.label_dow = tk.Label(self.root, text='Enter days of work:').place(x=405, y=40) 
 
-        self.label_hpd = tk.Label(self.root, text='Enter hours per day:')
-        self.label_hpd.grid(row=0, column=3)
+        self.label_hpd = tk.Label(self.root, text='Enter hours per day:').place(x=605, y=40)
 
         #Entries
-        self.entry_worker = tk.Entry(self.root)
-        self.entry_worker.grid(row=1, column=0)
+        self.entry_worker = tk.Entry(self.root).place(x=5, y=60, width=50)
 
-        self.entry_ct = tk.Entry(self.root)
-        self.entry_ct.grid(row=1, column=1)
+        self.entry_ct = tk.Entry(self.root).place(x=205, y=60, width=50)
 
-        self.entry_dow = tk.Entry(self.root)
-        self.entry_dow.grid(row=1, column=2)
+        self.entry_dow = tk.Entry(self.root).place(x=405, y=60, width=50)
 
-        self.entry_hpd = tk.Entry(self.root)
-        self.entry_hpd.grid(row=1, column=3)
+        self.entry_hpd = tk.Entry(self.root).place(x=605, y=60, width=50)
 
         #Buttons
-        self.set_workers_button = tk.Button(self.root, text = 'Set Workers instance', relief=tk.RAISED, command=self.get_number_of_workers)
-        self.set_workers_button.grid(row=2, column=0, sticky=tk.E+tk.W)
+        self.set_workers_button = tk.Button(self.root, text = 'Set Workers instance', relief=tk.RAISED, command=self.get_number_of_workers).place(x=5, y=85)
 
 
         #Druga część modyfikowalna - utworzenie instancji klasy Machines
@@ -101,22 +118,17 @@ class Gui():
         """
 
         #Labels
-        self.label_types = tk.Label(self.root, text='Enter number of types:')
-        self.label_types.grid(row=3, column=0)
+        self.label_types = tk.Label(self.root, text='Enter number of types:').place(x=5, y=120)
 
-        self.label_amt_tom = tk.Label(self.root, text='Enter amount of machines[pattern: "3,5,6"]:')
-        self.label_amt_tom.grid(row=3, column=1)
+        self.label_amt_tom = tk.Label(self.root, text='Enter amount of machines:').place(x=205, y=120)
 
         #Entries
-        self.entry_types = tk.Entry(self.root)
-        self.entry_types.grid(row=4, column=0)
+        self.entry_types = tk.Entry(self.root).place(x=5, y=140, width=50)
 
-        self.entry_amt_tom = tk.Entry(self.root)
-        self.entry_amt_tom.grid(row=4, column=1)
+        self.entry_amt_tom = tk.Entry(self.root).place(x=205, y=140)
 
         #Buttons
-        self.amt_of_specific = tk.Button(self.root, text = 'Set Machines instance', relief=tk.RAISED, command=self.amt_of_specific_type)
-        self.amt_of_specific.grid(row=5, column=0)
+        self.amt_of_specific = tk.Button(self.root, text = 'Set Machines instance', relief=tk.RAISED, command=self.amt_of_specific_type).place(x=5, y=165)
 
 
         #Trzecia część modyfikowalna - utworzenie instancji klasy Product
@@ -131,40 +143,29 @@ class Gui():
         """
 
         #Labels
-        self.label_amt_products = tk.Label(self.root, text='Enter number of products:')
-        self.label_amt_products.grid(row=6, column=0)
+        self.label_amt_products = tk.Label(self.root, text='Enter number of products:').place(x=5, y=200)
 
-        self.label_index = tk.Label(self.root, text='Enter index of product u want to edit:')
-        self.label_index.grid(row=6, column=1)
+        self.label_index = tk.Label(self.root, text='Enter index of product u want to edit:').place(x=205, y=200)
 
-        self.label_profit = tk.Label(self.root, text='Enter generated profit from product:')
-        self.label_profit.grid(row=6, column=2)
+        self.label_profit = tk.Label(self.root, text='Enter generated profit from product:').place(x=405, y=200)
 
-        self.label_hps = tk.Label(self.root, text='Enter hours per stage:')
-        self.label_hps.grid(row=6, column=3)
+        self.label_hps = tk.Label(self.root, text='Enter hours per stage:').place(x=605, y=200)
 
         #Entries
-        self.entry_amt_products = tk.Entry(self.root)
-        self.entry_amt_products.grid(row=7, column=0)
+        self.entry_amt_products = tk.Entry(self.root).place(x=5, y=220, width=50)
 
-        self.entry_index = tk.Entry(self.root)
-        self.entry_index.grid(row=7, column=1)
+        self.entry_index = tk.Entry(self.root).place(x=205, y=220, width=50)
         
-        self.entry_profit = tk.Entry(self.root)
-        self.entry_profit.grid(row=7,  column=2)
+        self.entry_profit = tk.Entry(self.root).place(x=405, y=220, width=50)
         
-        self.entry_hps = tk.Entry(self.root)
-        self.entry_hps.grid(row=7, column=3)
+        self.entry_hps = tk.Entry(self.root).place(x=605, y=220)
 
         #Buttons
-        self.button_amt_products = tk.Button(self.root, text='Confirm amount of products', command=self.create_amt_products)
-        self.button_amt_products.grid(row=8, column=0)
+        self.button_amt_products = tk.Button(self.root, text='Confirm amount of products', command=self.create_amt_products).place(x=5, y=245)
 
-        self.button_product_index = tk.Button(self.root, text='Create product', relief=tk.RAISED, command=self.create_product)
-        self.button_product_index.grid(row=8, column=2)
+        self.button_product_index = tk.Button(self.root, text='Create product', relief=tk.RAISED, command=self.create_product).place(x=405, y=245)
 
-        self.button_create_hps_matrix = tk.Button(self.root, text='Create hps matrix', relief=tk.RAISED, command=self.create_hps_matrix)
-        self.button_create_hps_matrix.grid(row=8, column=3)
+        self.button_create_hps_matrix = tk.Button(self.root, text='Create hps matrix', relief=tk.RAISED, command=self.create_hps_matrix).place(x=605, y=245)
 
 
         #Sposób usuwania - mozliwa modyfikacja
@@ -173,11 +174,9 @@ class Gui():
         :param checkButton_deterministic_deletion: mozliwosc wlaczenia deterministycznego usuwania elementow
         """
 
-        self.checkButton_default_deletion = tk.Checkbutton(self.root, text='Random deletion of elements', variable=self.default_deletion, onvalue=1, offvalue=0, command=self.choose_deletion_type)
-        self.checkButton_default_deletion.grid(row=9, column=0)
+        self.checkButton_default_deletion = tk.Checkbutton(self.root, text='Random deletion of elements', variable=self.default_deletion, onvalue=1, offvalue=0, command=self.choose_deletion_type).place(x=5, y=275)
 
-        self.checkButton_deterministic_deletion = tk.Checkbutton(self.root, text='Deterministic deletion of elements', variable=self.deterministic_deletion, onvalue=1, offvalue=0, command=self.choose_deletion_type)
-        self.checkButton_deterministic_deletion.grid(row=9, column=1)
+        self.checkButton_deterministic_deletion = tk.Checkbutton(self.root, text='Deterministic deletion of elements', variable=self.deterministic_deletion, onvalue=1, offvalue=0, command=self.choose_deletion_type).place(x=305, y=275)
 
 
         #Wybor sposobu dobierania sasiedztwa - mozliwa modyfikacja
@@ -186,11 +185,9 @@ class Gui():
         :param checkButton_detereministic_neigh: mozliwosc wlaczenia deterministycznego doboru sasiedztwa
         """
 
-        self.checkButton_default_neigh = tk.Checkbutton(self.root, text='Random neighbours', variable=self.default_neigh, onvalue=1, offvalue=0, command=self.choose_neigh)
-        self.checkButton_default_neigh.grid(row=10, column=0)
+        self.checkButton_default_neigh = tk.Checkbutton(self.root, text='Random neighbours', variable=self.default_neigh, onvalue=1, offvalue=0, command=self.choose_neigh).place(x=5, y=295)
         
-        self.checkButton_deterministic_neigh = tk.Checkbutton(self.root, text='Deterministic neighbours', variable=self.deterministic_neigh, onvalue=1, offvalue=0, command=self.choose_neigh)
-        self.checkButton_deterministic_neigh.grid(row=10, column=1)
+        self.checkButton_deterministic_neigh = tk.Checkbutton(self.root, text='Deterministic neighbours', variable=self.deterministic_neigh, onvalue=1, offvalue=0, command=self.choose_neigh).place(x=305, y=295)
 
 
         #Kryterium aspiracji - mozliwa modyfikacja
@@ -199,11 +196,20 @@ class Gui():
         :param checkButton_one_of_best_aspiration: mozliwosc wlaczenia wyboru jednego z najlepszych rozwiazan wczesniejszych
         """
 
-        self.checkButton_default_aspiration = tk.Checkbutton(self.root, text='Random Aspiration Cirteria', variable=self.default_aspiration, onvalue=1, offvalue=0, command=self.aspiration_criteria)
-        self.checkButton_default_aspiration.grid(row=11, column=0)
+        self.checkButton_default_aspiration = tk.Checkbutton(self.root, text='Random Aspiration Cirteria', variable=self.default_aspiration, onvalue=1, offvalue=0, command=self.aspiration_criteria).place(x=5, y=315)
 
-        self.checkButton_one_of_best_aspiration = tk.Checkbutton(self.root, text='One of best Aspiration Cirteria', variable=self.one_of_best_aspiration, onvalue=1, offvalue=0, command=self.aspiration_criteria)
-        self.checkButton_one_of_best_aspiration.grid(row=11, column=1)
+        self.checkButton_one_of_best_aspiration = tk.Checkbutton(self.root, text='One of best Aspiration Cirteria', variable=self.one_of_best_aspiration, onvalue=1, offvalue=0, command=self.aspiration_criteria).place(x=305, y=315)
+
+        
+        #Tabu search - mozliwa modyfikacja
+        """
+        :param checkButton_default_tabu_search: mozliwosc zmiany listy tabu na stala dlugosc
+        :param checkButton_deterministic_tabu_search: mozliwosc zmianny na zmienna dlugosc listy tabu
+        """
+
+        self.checkButton_default_tabu_search = tk.Checkbutton(self.root, text='Constant length of tabu list', variable=self.default_ts, onvalue=1, offvalue=0, command=self.ts_check).place(x=5, y=335)
+
+        self.checkButton_deterministic_tabu_search = tk.Checkbutton(self.root, text='Deterministic length of tabu list', variable=self.deterministic_ts, onvalue=1, offvalue=0, command=self.ts_check).place(x=305, y=335)
 
 
         #Utworzenie rozwiazania
@@ -211,41 +217,37 @@ class Gui():
         :param button_create_solution: utworzenie pierwszego rozwiazania
         """
 
-        self.button_create_solution = tk.Button(self.root, text='Create solution', relief=tk.RAISED, command=self.create_solution)
-        self.button_create_solution.grid(row=13, column=0)
+        self.button_create_solution = tk.Button(self.root, text='Create solution', relief=tk.RAISED, command=self.create_solution).place(x=5, y=365)
+
 
         #Max iter i aspiration threshold - mozliwa modyfikacja
 
         """
         :param label_max_iter/entry_max_iter: mozliwosc zmiany maksymalnej ilosci iteracji
         :param label_threshold/entry_threshold: mozliwosc zmiany threshold
+        :param button_confirm: zamiana wartosci max_iter oraz threshold
         """
 
         #Labels
-        self.label_max_iter = tk.Label(self.root, text='Enter max iter:')
-        self.label_max_iter.grid(row=14, column=0)
+        self.label_max_iter = tk.Label(self.root, text='Enter max iter:').place(x=5, y=395)
 
-        self.label_threshold = tk.Label(self.root, text='Enter threshold:')
-        self.label_threshold.grid(row=14, column=1)
+        self.label_threshold = tk.Label(self.root, text='Enter threshold:').place(x=205, y=395)
 
         #Entries
-        self.entry_max_iter = tk.Entry(self.root)
-        self.entry_max_iter.grid(row=15, column=0)
+        self.entry_max_iter = tk.Entry(self.root).place(x=5, y=415, width=50)
 
-        self.entry_threshold = tk.Entry(self.root)
-        self.entry_threshold.grid(row=15, column=1)
+        self.entry_threshold = tk.Entry(self.root).place(x=205, y=415, width=50)
 
         #Buttons
-        self.button_confirm = tk.Button(self.root, text='Confirm', relief=tk.RAISED, command=self.iter_thresh)
-        self.button_confirm.grid(row=15, column=2)
+        self.button_confirm = tk.Button(self.root, text='Confirm', relief=tk.RAISED, command=self.iter_thresh).place(x=605, y=415)
+
 
         #Uruchomienie algorytmu
         """
         :param button_algorithm_ts: poszukiwanie rozwiazania algorytmem
         """
 
-        self.button_algorithm_ts = tk.Button(self.root, text='Run algorithm', relief=tk.RAISED, command=self.run_algorithm)
-        self.button_algorithm_ts.grid(row=16, column=0)
+        self.button_algorithm_ts = tk.Button(self.root, text='Run algorithm', relief=tk.RAISED, command=self.run_algorithm).place(x=5, y=455)
 
 
         #Uruchomienie wykresów
@@ -253,15 +255,35 @@ class Gui():
         :param button_show_plot: wyswietlanie wykresu
         """
 
-        self.button_show_plot = tk.Button(self.root, text='Show plot', relief=tk.RAISED, command=self.show_plot)
-        self.button_show_plot.grid(row=16, column=3)
+        self.button_show_plot = tk.Button(self.root, text='Show plot', relief=tk.RAISED, command=self.show_plot).place(x=605, y=455)
 
 
-        #Tymczasowe
-        self.text = tk.Label(self.root, text='Your algorithm result:')
-        self.text.grid(row=17, column=0)
+        #Wyswietlenie wartosci wyniku dzialania algorytmu
+        self.text = tk.Label(self.root, text='Your algorithm result:').place(x=5, y=495)
 
         self.root.mainloop()
+
+
+    def new_window(self):
+        window = tk.Toplevel()
+        window.title("Show data")
+        window.geometry("800x600")
+        window.resizable(width=False, height=False)
+
+        ico = Image.open('ikona.jpg')
+        photo = ImageTk.PhotoImage(ico)
+        window.wm_iconphoto(False, photo)
+
+        self.button_close = tk.Button(window, text='Close window', relief=tk.RAISED, command=window.destroy).place(x=710, y=5)
+
+
+    def load_from_file(self):
+        pass
+
+
+    def save_to_file(self):
+        pass
+
 
     def get_number_of_workers(self):
         try:
@@ -287,6 +309,7 @@ class Gui():
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
 
+
     def amt_of_specific_type(self):
         try:
             types = int(self.entry_types.get())
@@ -303,6 +326,7 @@ class Gui():
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
 
+
     def create_amt_products(self):
         try:
             amount = int(self.entry_amt_products.get())
@@ -312,6 +336,7 @@ class Gui():
             self.hps_matrix = [0 for _ in range(amount)]
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
+
 
     def create_product(self):
         try:
@@ -336,6 +361,7 @@ class Gui():
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
 
+
     def create_hps_matrix(self):
         self.prod = Product(1, self.mach.types)
 
@@ -346,23 +372,42 @@ class Gui():
 
         print(self.hps_matrix)
 
+
+    def ts_check(self):
+        if self.default_ts.get() == self.deterministic_ts.get() and (self.deterministic_ts.get() == 1 or self.deterministic_ts.get() == 0):
+            pass
+        elif self.default_ts.get() == 1:
+            self.ts = 'constant'
+        elif self.deterministic_ts.get() == 1:
+            self.ts = 'deterministic'
+
+
     def aspiration_criteria(self):
-        if self.default_aspiration.get() == 1:
+        if self.default_aspiration.get() == self.one_of_best_aspiration.get() and (self.default_aspiration.get() == 1 or self.default_aspiration.get() == 0):
+            pass
+        elif self.default_aspiration.get() == 1:
             self.aspiration = 'random'
         elif self.one_of_best_aspiration.get() == 1:
             self.aspiration = 'random_best'
 
+
     def choose_neigh(self):
-        if self.default_neigh.get() == 1:
+        if self.default_neigh.get() == self.deterministic_neigh.get() and (self.default_neigh.get() == 1 or self.default_neigh.get() == 0):
+            pass
+        elif self.default_neigh.get() == 1:
             self.neigh_type = 'default'
         elif self.deterministic_neigh.get() == 1:
             self.neigh_type = 'deterministic'
 
+
     def choose_deletion_type(self):
-        if self.default_deletion.get() == 1:
+        if self.default_deletion.get() == self.deterministic_deletion.get() and (self.default_deletion.get() == 1 or self.default_deletion.get() == 0):
+            pass
+        elif self.default_deletion.get() == 1:
             self.del_selection = 'default'
         elif self.deterministic_deletion.get() == 1:
             self.del_selection = 'deterministic'
+
 
     def iter_thresh(self):
         try:
@@ -371,10 +416,12 @@ class Gui():
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
 
+
     def create_solution(self):
         self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple, checking_time=self.worker.checking_time, worker_hours=self.wrokers_hours, days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day)
         self.sol.random_solution()
     
+
     def run_algorithm(self):
         if self.default_aspiration.get() == self.one_of_best_aspiration.get() and self.one_of_best_aspiration.get() == 1:
             messagebox.showinfo(title='Warning', message='Both types of criteria aspiration are active!')
@@ -388,7 +435,7 @@ class Gui():
 
         if self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 1:
             messagebox.showinfo(title='Warning', message='Both types of deletion type are active!')
-        elif self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 1:
+        elif self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 0:
             messagebox.showinfo(title='Warning', message='None of types of deletion type is active!')
 
         if self.sol == []:
@@ -396,7 +443,6 @@ class Gui():
         else:
             ts = TabuSearch(solution=self.sol, neigh_type=self.neigh_type, aspiration_criteria=self.aspiration, max_iter=self.max_iter, aspiration_threshold=self.threshold)
             self.text['text'] = ts.algorythm()
-
 
 
     def show_plot(self):
