@@ -1,7 +1,9 @@
 from main import *
-from tkinter import messagebox
+from tkinter import messagebox, Tk
+from tkinter.filedialog import askopenfilename
 import tkinter as tk
 from PIL import Image, ImageTk
+
 
 class Gui():
 
@@ -26,7 +28,7 @@ class Gui():
         self.worker = worker
         self.mach = mach
         self.prod = prod
-        self.wrokers_hours = workers_hours
+        self.wrk_hrs = workers_hours
         self.amt_tuple = amt_tuple
         self.profits = profits
         self.hps_matrix = hps_matrix
@@ -44,10 +46,7 @@ class Gui():
         self.root.title('Fabryka - algorytm TS')
         self.root.geometry("800x600")
         self.root.resizable(width=False, height=False)
-
-        ico = Image.open('ikona.jpg')
-        photo = ImageTk.PhotoImage(ico)
-        self.root.wm_iconphoto(False, photo)
+        self.root.iconbitmap(r"ikona.ico")
 
 
         #Zmienne do checkbox'ow
@@ -278,11 +277,57 @@ class Gui():
 
 
     def load_from_file(self):
-        pass
+        Tk().withdraw()
+        filename = askopenfilename()
 
+        with open(f'{filename}') as f:
+            lines = f.read().splitlines()
+            
+            worker_line = lines[0]
+            machines_line = lines[1]
+            products_line = lines[2:]
+
+            f.close()
+
+        worker_line = worker_line.split(sep=':')
+        machines_line = machines_line.split(sep=':')
+       
+        for idx in range(len(products_line)):
+            products_line[idx] = products_line[idx].split(sep=':')
+
+        #Worker
+        amt_worker, check_time, dow, hpd = tuple(worker_line)
+        self.worker = Workers(int(amt_worker), int(check_time), int(dow), int(hpd))
+        self.wrk_hrs = self.worker.worker_hours()
+
+        #Machines
+        machine_types, amt_machine_types = tuple(machines_line)
+        self.mach = Machines(int(machine_types))
+
+        amt_machine_types = amt_machine_types.split(sep=',')
+
+        for idx in range(len(amt_machine_types)):
+            amt_machine_types[idx] = int(amt_machine_types[idx])
+
+        self.amt_tuple = self.mach.amount_of_specific_type(amt_machine_types)
+
+        #Products
+        length_pl = len(products_line)
+
+        self.profits = [0 for _ in range(length_pl)]
+        self.hps_matrix = [0 for _ in range(length_pl)]
+        for idx in range(length_pl):
+            self.profits[idx] = int(products_line[idx][0])
+
+        hps = [0 for _ in range(length_pl)]
+        for idx in range(length_pl):
+            hps[idx] = products_line[idx][1].split(sep=',')
+            self.hps_matrix[idx] = [int(x) for x in hps[idx]]
+        
+        self.hps_matrix = np.column_stack(self.hps_matrix)
 
     def save_to_file(self):
-        pass
+        pass #TODO: do zrobienia jeszcze zapisywanie
 
 
     def get_number_of_workers(self):
@@ -304,7 +349,7 @@ class Gui():
                 hpd = int(self.entry_hpd.get())
                 self.worker = Workers(amt, ct, dow, hpd)
 
-            self.wrokers_hours = self.worker.worker_hours()
+            self.wrk_hrs = self.worker.worker_hours()
 
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
@@ -370,8 +415,6 @@ class Gui():
 
         self.hps_matrix = np.column_stack(self.hps_matrix)
 
-        print(self.hps_matrix)
-
 
     def ts_check(self):
         if self.default_ts.get() == self.deterministic_ts.get() and (self.deterministic_ts.get() == 1 or self.deterministic_ts.get() == 0):
@@ -418,9 +461,9 @@ class Gui():
 
 
     def create_solution(self):
-        self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple, checking_time=self.worker.checking_time, worker_hours=self.wrokers_hours, days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day)
+        self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple, checking_time=self.worker.checking_time, worker_hours=self.wrk_hrs, days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day)
         self.sol.random_solution()
-    
+
 
     def run_algorithm(self):
         if self.default_aspiration.get() == self.one_of_best_aspiration.get() and self.one_of_best_aspiration.get() == 1:

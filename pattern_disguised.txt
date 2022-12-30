@@ -1,0 +1,4 @@
+amount_of_workers:checking_time:days_of_work:hours_per_day
+amount_of_machine_types:amount_of_machine_types_tuple
+profit_of_product:tuple_of_hours_per_stage
+same as line number 3 timed equally to amount of products

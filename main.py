@@ -167,11 +167,11 @@ class Solution(Factory):
             for j in range(self.hours_per_stage.shape[1]):
                 requirements[i] += self.hours_per_stage[i][j] * self.production[j]
                 if requirements[i] > self.hours_per_day * self.day_of_work * self.machines_per_stage[i]: # 5 (dni tygodnia) * 8 (roboczogodzin dziennie) * ilość maszyn na danym etapie
-                    print('zostało godzin na maszyne', self.hours_per_machine_left)
+                    print('Zostało godzin na maszyne', self.hours_per_machine_left)
                     return 1
             req_worker += self.checking_time * self.production[i] + requirements[i]
             if req_worker > self.workers_hours:
-                print('zostało godzin: ', self.workers_hours_left)
+                print('Zostało godzin: ', self.workers_hours_left)
                 return 1
         return 0
 
@@ -189,7 +189,7 @@ class Solution(Factory):
                 self.best_funkcja_celu = self.funkcja_celu()
         else:                                                        # wyznaczanie losowego rozwiązanie, ale nie startowego
             self.workers_hours_left = self.workers_hours  
-            self.hours_per_machine_left = list(self.limits_per_machine)
+            # self.hours_per_machine_left = list(self.limits_per_machine)
             self.production = [0 for _ in range(len(self.profit))]
             while self.workers_hours_left > 0 and self.production_error <= 10:
                 self.random_part()
@@ -333,7 +333,7 @@ class Solution(Factory):
 
 
 class TabuSearch():
-    def __init__(self, solution, max_iter, aspiration_threshold, stopping_cond=None, neigh_type='default', aspiration_criteria='random'):
+    def __init__(self, solution, neigh_type='default', aspiration_criteria='random', stopping_cond=None, max_iter = 100, aspiration_threshold = 10):
         """
         :param solution: startowe rozwiązanie, obiekt klasy Solution
         :param max_tabu_len: wielkość listy tabu
@@ -396,6 +396,7 @@ class TabuSearch():
 
 #Zdefiniowanie pracowników
 work = Workers(10, 10)
+work_time = work.worker_hours()
 
 #Zdefiniowanie ilości maszyn
 mach = Machines(3)
@@ -421,8 +422,8 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 
 
 #Korzystamy już z wpisywanych wartości
-sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work.worker_hours(), days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
+sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
 
-ts = TabuSearch(solution=sol, max_iter=100, aspiration_threshold=10, aspiration_criteria='random_best')
+ts = TabuSearch(solution=sol, aspiration_criteria='random_best', max_iter=100, aspiration_threshold=10, )
 print(ts.algorythm())
