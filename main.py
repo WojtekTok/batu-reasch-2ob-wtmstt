@@ -414,10 +414,11 @@ vec4 = prod4.hps(0, 14, 0)
 
 #Przygotowanie potrzebnych macierzy i wektorów
 hps_matrix = prod1.hps_matrix(vec1, vec2, vec3, vec4)
+
+print(hps_matrix)
+
 profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, prod4.profit)
 
-# print(profits)
-# print(hps_matrix)
 
 #Korzystamy już z wpisywanych wartości
 sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work.worker_hours(), days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)

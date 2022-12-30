@@ -4,33 +4,53 @@ from tkinter import messagebox
 
 class Gui():
 
-    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), amt_tuple=0, amt_products = [], profits = [], hps_matrix = []):
+    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], hps_matrix = [], aspiration='random', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10):
         """
         Zdefiniowanie zmiennych tak, żeby mieć do nich dostęp w całej klasie
         :param worker: instancja klasy Workers
         :param mach: instancja klasy Machines
         :param prod: instancja klasy Product
+        :param workers_hours: dostepny czas pracownikow
         :param amt_tuple: amount of types, krotka zawierająca ilość maszyn danego rodzaju
         :param amt_products: amount of products, lista zawierająca informację o produktach
         :param profits: lista zawierająca zysk z poszczególnych produktów
         :param hps_matrix: macierz zawierająca czas potrzebny na wykonanie produktów na poszczególnym etapie
+        :param max_iter: maksymalna ilosc iteracji
+        :param threshold: threshold
         """
         self.worker = worker
         self.mach = mach
         self.prod = prod
+        self.wrokers_hours = workers_hours
         self.amt_tuple = amt_tuple
-        self.amt_products = amt_products
         self.profits = profits
         self.hps_matrix = hps_matrix
+        self.aspiration = aspiration
+        self.del_selection = del_selection
+        self.neigh_type = neigh_type
+        self.sol = sol
+        self.max_iter = max_iter
+        self.threshold = threshold
 
         #GUI
         self.root = tk.Tk()
+        self.root.title('Fabryka - algorytm TS')
         self.root.geometry("800x600")
         self.root.resizable(width=False, height=False)
 
         #Konfiguracja układu GUI
         self.root.rowconfigure(0, weight=3)
         self.root.columnconfigure([0,1,2,3], weight=3)
+
+        #Zmienne do checkbox'ow
+        self.default_aspiration = tk.IntVar()
+        self.one_of_best_aspiration = tk.IntVar()
+
+        self.default_deletion = tk.IntVar()
+        self.deterministic_deletion = tk.IntVar()
+
+        self.default_neigh = tk.IntVar()
+        self.deterministic_neigh = tk.IntVar()
 
 
         #Pierwsza część modyfikowalna - utworzenie instancji klasy Workers
@@ -98,9 +118,16 @@ class Gui():
         self.amt_of_specific = tk.Button(self.root, text = 'Set Machines instance', relief=tk.RAISED, command=self.amt_of_specific_type)
         self.amt_of_specific.grid(row=5, column=0)
 
+
         #Trzecia część modyfikowalna - utworzenie instancji klasy Product
         """
-        
+        :param label_amt_products/entry_amt_products: label oraz wprowadzenie ilosci produktow
+        :param label_index/entry_index: label oraz wprowadzenie obecnie modyfikowanego produktu
+        :param label_profit/entry_profit: label oraz wprowadzenie zysku z danego produktu
+        :param label_hps/entry_hps: label oraz wprowadzenie godzin potrzebnych na poszczegolnym etapie produkcji do wytworzenia produktu danego rodzaju
+        :param button_amt_products: przycisk resetujacy wczesniejsze ustawienia, tworzacy nowe zerowe listy
+        :param button_product_index: przycisk tworzacy produkt o zadanym indeksie
+        :param button_create_hps_matrix: przycisk tworzacy macierz hps, po utworzeniu wczesniejszym produktow
         """
 
         #Labels
@@ -136,6 +163,104 @@ class Gui():
         self.button_product_index = tk.Button(self.root, text='Create product', relief=tk.RAISED, command=self.create_product)
         self.button_product_index.grid(row=8, column=2)
 
+        self.button_create_hps_matrix = tk.Button(self.root, text='Create hps matrix', relief=tk.RAISED, command=self.create_hps_matrix)
+        self.button_create_hps_matrix.grid(row=8, column=3)
+
+
+        #Sposób usuwania - mozliwa modyfikacja
+        """
+        :param checkButton_default_deletion: mozliwosc wlaczenia losowego usuwania elementów
+        :param checkButton_deterministic_deletion: mozliwosc wlaczenia deterministycznego usuwania elementow
+        """
+
+        self.checkButton_default_deletion = tk.Checkbutton(self.root, text='Random deletion of elements', variable=self.default_deletion, onvalue=1, offvalue=0, command=self.choose_deletion_type)
+        self.checkButton_default_deletion.grid(row=9, column=0)
+
+        self.checkButton_deterministic_deletion = tk.Checkbutton(self.root, text='Deterministic deletion of elements', variable=self.deterministic_deletion, onvalue=1, offvalue=0, command=self.choose_deletion_type)
+        self.checkButton_deterministic_deletion.grid(row=9, column=1)
+
+
+        #Wybor sposobu dobierania sasiedztwa - mozliwa modyfikacja
+        """
+        :param checkButton_default_neigh: mozliwosc wlaczenie losowego doboru sasiedztwa
+        :param checkButton_detereministic_neigh: mozliwosc wlaczenia deterministycznego doboru sasiedztwa
+        """
+
+        self.checkButton_default_neigh = tk.Checkbutton(self.root, text='Random neighbours', variable=self.default_neigh, onvalue=1, offvalue=0, command=self.choose_neigh)
+        self.checkButton_default_neigh.grid(row=10, column=0)
+        
+        self.checkButton_deterministic_neigh = tk.Checkbutton(self.root, text='Deterministic neighbours', variable=self.deterministic_neigh, onvalue=1, offvalue=0, command=self.choose_neigh)
+        self.checkButton_deterministic_neigh.grid(row=10, column=1)
+
+
+        #Kryterium aspiracji - mozliwa modyfikacja
+        """
+        :param checkButton_default_aspiration: mozliwosc wlaczenia randomowego kryterium aspiracji
+        :param checkButton_one_of_best_aspiration: mozliwosc wlaczenia wyboru jednego z najlepszych rozwiazan wczesniejszych
+        """
+
+        self.checkButton_default_aspiration = tk.Checkbutton(self.root, text='Random Aspiration Cirteria', variable=self.default_aspiration, onvalue=1, offvalue=0, command=self.aspiration_criteria)
+        self.checkButton_default_aspiration.grid(row=11, column=0)
+
+        self.checkButton_one_of_best_aspiration = tk.Checkbutton(self.root, text='One of best Aspiration Cirteria', variable=self.one_of_best_aspiration, onvalue=1, offvalue=0, command=self.aspiration_criteria)
+        self.checkButton_one_of_best_aspiration.grid(row=11, column=1)
+
+
+        #Utworzenie rozwiazania
+        """
+        :param button_create_solution: utworzenie pierwszego rozwiazania
+        """
+
+        self.button_create_solution = tk.Button(self.root, text='Create solution', relief=tk.RAISED, command=self.create_solution)
+        self.button_create_solution.grid(row=13, column=0)
+
+        #Max iter i aspiration threshold - mozliwa modyfikacja
+
+        """
+        :param label_max_iter/entry_max_iter: mozliwosc zmiany maksymalnej ilosci iteracji
+        :param label_threshold/entry_threshold: mozliwosc zmiany threshold
+        """
+
+        #Labels
+        self.label_max_iter = tk.Label(self.root, text='Enter max iter:')
+        self.label_max_iter.grid(row=14, column=0)
+
+        self.label_threshold = tk.Label(self.root, text='Enter threshold:')
+        self.label_threshold.grid(row=14, column=1)
+
+        #Entries
+        self.entry_max_iter = tk.Entry(self.root)
+        self.entry_max_iter.grid(row=15, column=0)
+
+        self.entry_threshold = tk.Entry(self.root)
+        self.entry_threshold.grid(row=15, column=1)
+
+        #Buttons
+        self.button_confirm = tk.Button(self.root, text='Confirm', relief=tk.RAISED, command=self.iter_thresh)
+        self.button_confirm.grid(row=15, column=2)
+
+        #Uruchomienie algorytmu
+        """
+        :param button_algorithm_ts: poszukiwanie rozwiazania algorytmem
+        """
+
+        self.button_algorithm_ts = tk.Button(self.root, text='Run algorithm', relief=tk.RAISED, command=self.run_algorithm)
+        self.button_algorithm_ts.grid(row=16, column=0)
+
+
+        #Uruchomienie wykresów
+        """
+        :param button_show_plot: wyswietlanie wykresu
+        """
+
+        self.button_show_plot = tk.Button(self.root, text='Show plot', relief=tk.RAISED, command=self.show_plot)
+        self.button_show_plot.grid(row=16, column=3)
+
+
+        #Tymczasowe
+        self.text = tk.Label(self.root, text='Your algorithm result:')
+        self.text.grid(row=17, column=0)
+
         self.root.mainloop()
 
     def get_number_of_workers(self):
@@ -156,6 +281,8 @@ class Gui():
                 dow = int(self.entry_dow.get())
                 hpd = int(self.entry_hpd.get())
                 self.worker = Workers(amt, ct, dow, hpd)
+
+            self.wrokers_hours = self.worker.worker_hours()
 
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
@@ -205,12 +332,74 @@ class Gui():
                 messagebox.showinfo(title='Error', message='The amount of types is not equal to kind of types!')
 
             self.profits[index-1] = profit
-            self.hps_matrix[index-1] = time_required
-
-            print(self.profits)
-            print(self.hps_matrix)            
-
+            self.hps_matrix[index-1] = time_required         
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
+
+    def create_hps_matrix(self):
+        self.prod = Product(1, self.mach.types)
+
+        for index in range(len(self.hps_matrix)):
+            self.hps_matrix[index] = np.transpose(self.hps_matrix[index])
+
+        self.hps_matrix = np.column_stack(self.hps_matrix)
+
+        print(self.hps_matrix)
+
+    def aspiration_criteria(self):
+        if self.default_aspiration.get() == 1:
+            self.aspiration = 'random'
+        elif self.one_of_best_aspiration.get() == 1:
+            self.aspiration = 'random_best'
+
+    def choose_neigh(self):
+        if self.default_neigh.get() == 1:
+            self.neigh_type = 'default'
+        elif self.deterministic_neigh.get() == 1:
+            self.neigh_type = 'deterministic'
+
+    def choose_deletion_type(self):
+        if self.default_deletion.get() == 1:
+            self.del_selection = 'default'
+        elif self.deterministic_deletion.get() == 1:
+            self.del_selection = 'deterministic'
+
+    def iter_thresh(self):
+        try:
+            self.max_iter = int(self.entry_max_iter.get())
+            self.threshold = int(self.entry_threshold.get())
+        except:
+            messagebox.showinfo(title='Error', message='Please enter valid number!')
+
+    def create_solution(self):
+        self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple, checking_time=self.worker.checking_time, worker_hours=self.wrokers_hours, days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day)
+        self.sol.random_solution()
+    
+    def run_algorithm(self):
+        if self.default_aspiration.get() == self.one_of_best_aspiration.get() and self.one_of_best_aspiration.get() == 1:
+            messagebox.showinfo(title='Warning', message='Both types of criteria aspiration are active!')
+        elif self.default_aspiration.get() == self.one_of_best_aspiration.get() and self.one_of_best_aspiration.get() == 0:
+            messagebox.showinfo(title='Warning', message='None of types of criteria aspiration is active!')
+
+        if self.default_neigh.get() == self.deterministic_neigh.get() and self.deterministic_neigh.get() == 1:
+            messagebox.showinfo(title='Warning', message='Both types of neighbour type are active!')
+        elif self.default_neigh.get() == self.deterministic_neigh.get() and self.deterministic_neigh.get() == 0:
+            messagebox.showinfo(title='Warning', message='None of types of neighbour type is active!')
+
+        if self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 1:
+            messagebox.showinfo(title='Warning', message='Both types of deletion type are active!')
+        elif self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 1:
+            messagebox.showinfo(title='Warning', message='None of types of deletion type is active!')
+
+        if self.sol == []:
+            messagebox.showinfo(title='Warning', message='No solution found yet!')
+        else:
+            ts = TabuSearch(solution=self.sol, neigh_type=self.neigh_type, aspiration_criteria=self.aspiration, max_iter=self.max_iter, aspiration_threshold=self.threshold)
+            self.text['text'] = ts.algorythm()
+
+
+
+    def show_plot(self):
+        pass #TODO: dodanie logiki do tworzenia wykresow
 
 Gui()
