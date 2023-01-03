@@ -6,7 +6,7 @@ import tkinter as tk
 
 class Gui():
 
-    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], hps_matrix = [], aspiration='random', tabu_search = 'default', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10):
+    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], lpm = [], hps_matrix = [], aspiration='random', tabu_search = 'default', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10):
         """
         Zdefiniowanie zmiennych tak, żeby mieć do nich dostęp w całej klasie
         :param worker: instancja klasy Workers
@@ -15,6 +15,7 @@ class Gui():
         :param workers_hours: dostepny czas pracownikow
         :param amt_tuple: amount of types, krotka zawierająca ilość maszyn danego rodzaju
         :param profits: lista zawierająca zysk z poszczególnych produktów
+        :param lpm: limits per machines
         :param hps_matrix: macierz zawierająca czas potrzebny na wykonanie produktów na poszczególnym etapie
         :param aspiration: pozwala na wybranie rodzaju kryterium aspiracji
         :param ts: pozwala na definiowanie rodzaju potencjalnych zmian listy tabu
@@ -30,6 +31,7 @@ class Gui():
         self.wrk_hrs = workers_hours
         self.amt_tuple = amt_tuple
         self.profits = profits
+        self.lpm = lpm
         self.hps_matrix = hps_matrix
         self.aspiration = aspiration
         self.ts_list = tabu_search
@@ -413,6 +415,10 @@ class Gui():
             amt_machine_types[idx] = int(amt_machine_types[idx])
 
         self.amt_tuple = self.mach.amount_of_specific_type(amt_machine_types)
+        self.lpm = [0 for _ in range(len(self.amt_tuple))]
+
+        for idx in range(len(self.amt_tuple)):
+            self.lpm[idx] = self.amt_tuple[idx] * self.worker.days_of_work * self.worker.hours_per_day
 
         #Products
         length_pl = len(products_line)
@@ -422,13 +428,14 @@ class Gui():
         for idx in range(length_pl):
             self.profits[idx] = int(products_line[idx][0])
 
+        self.profits = tuple(self.profits)
+
         hps = [0 for _ in range(length_pl)]
         for idx in range(length_pl):
             hps[idx] = products_line[idx][1].split(sep=',')
             self.hps_matrix[idx] = [int(x) for x in hps[idx]]
         
         self.hps_matrix = np.column_stack(self.hps_matrix)
-
 
     def save_to_file(self):
         # Docelowo wybieranie pliku obecnie wywala
@@ -602,8 +609,9 @@ class Gui():
     def create_solution(self):
         self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple,
                             checking_time=self.worker.checking_time, worker_hours=self.wrk_hrs,
-                            days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day)
-        self.sol.random_solution()
+                            days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day, limits_per_machine=self.lpm)
+
+        print(self.sol.random_solution())
 
 
     def run_algorithm(self):

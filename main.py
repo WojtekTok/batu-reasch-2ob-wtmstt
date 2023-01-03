@@ -364,31 +364,31 @@ class TabuSearch():
         """
         iter = 0  # liczba iteracji
         counter = 0  # liczba iteracji od poprzedniej aktualizacji najlepszego rozwiązania
-        best = sol.best_funkcja_celu  # najlepsze rozwiązania (wartość funkcji celu)
+        best = self.solution.best_funkcja_celu  # najlepsze rozwiązania (wartość funkcji celu)
         while iter < self.max_iter:
             self.next_move()
             iter += 1
-            print(sol.production, sol.funkcja_celu(), sol.ograniczenia())
+            print(self.solution.production, self.solution.funkcja_celu(), self.solution.ograniczenia())
             
             # kryterium aspiracji
             if self.aspiration_criteria == 'random':
-                if best == sol.best_funkcja_celu:
+                if best == self.solution.best_funkcja_celu:
                     counter += 1
                     if counter == self.aspiration_threshold:
-                        sol.random_solution()
+                        self.solution.random_solution()
                         counter = 0
                 else:
-                    best = sol.best_funkcja_celu
+                    best = self.solution.best_funkcja_celu
                     counter = 0
             # kryterium aspiracji, które idzie do jednego z najlepszych rozwiązań
             elif self.aspiration_criteria == 'random_best':
-                if best == sol.best_funkcja_celu:
+                if best == self.solution.best_funkcja_celu:
                     counter += 1
                     if counter == self.aspiration_threshold:
-                        sol.random_best_solution()
+                        self.solution.random_best_solution()
                         counter = 0
                 else:
-                    best = sol.best_funkcja_celu
+                    best = self.solution.best_funkcja_celu
                     counter = 0
         return self.solution.best_production, self.solution.best_funkcja_celu
         
@@ -420,9 +420,9 @@ print(hps_matrix)
 profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, prod4.profit)
 
 
-#Korzystamy już z wpisywanych wartości
+# #Korzystamy już z wpisywanych wartości
 sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
 
-ts = TabuSearch(solution=sol, neigh_type='deterministic', del_selection='deterministic',aspiration_criteria='random', max_iter=1000, aspiration_threshold=10)
+ts = TabuSearch(solution=sol, neigh_type='deterministic', del_selection='deterministic',aspiration_criteria='random', max_iter=100, aspiration_threshold=10)
 print(ts.algorythm())
