@@ -611,7 +611,8 @@ class Gui():
                             checking_time=self.worker.checking_time, worker_hours=self.wrk_hrs,
                             days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day, limits_per_machine=self.lpm)
 
-        print(self.sol.random_solution())
+        self.sol.random_solution()
+        print(type(self.sol))
 
 
     def run_algorithm(self):
@@ -644,8 +645,8 @@ class Gui():
             if is_warning == 0:
                 ts = TabuSearch(solution=self.sol, neigh_type=self.neigh_type, del_selection=self.del_selection,
                             aspiration_criteria=self.aspiration, max_iter=self.max_iter, aspiration_threshold=self.threshold)
-                self.text['text'] = ts.algorythm()
-
+                # self.text['text'] = ts.algorythm()
+                print(ts.algorythm())
 
     def show_plot(self):
         pass #TODO: dodanie logiki do tworzenia wykresow

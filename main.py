@@ -188,7 +188,7 @@ class Solution(Factory):
                 self.best_funkcja_celu = self.funkcja_celu()
         else:                                                        # wyznaczanie losowego rozwiązanie, ale nie startowego
             self.workers_hours_left = self.workers_hours  
-            self.hours_per_machine_left = list(self.limits_per_machine)
+            self.hours_per_machine_left = [self.day_of_work * self.hours_per_day * self.machines_per_stage[i] for i in range(len(self.machines_per_stage))]
             self.production = [0 for _ in range(len(self.profit))]
             while self.workers_hours_left > 0 and self.production_error <= 10:
                 self.random_part()
@@ -423,6 +423,7 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 # #Korzystamy już z wpisywanych wartości
 sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
+print(type(sol))
 
 ts = TabuSearch(solution=sol, neigh_type='deterministic', del_selection='deterministic',aspiration_criteria='random', max_iter=100, aspiration_threshold=10)
-print(ts.algorythm())
+ts.algorythm()
