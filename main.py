@@ -126,7 +126,6 @@ class Solution(Factory):
         :param best_production: najlepsze dotychczasowe rozwiązanie tej samej postaci co parametr self.production
         :param best_funkcja_celu: funkcja celu z najlepszego rozwiązania
         :param best5_productions: tablica zawierająca (5) krotek z najlepszymi liniami produkcyjnymi, ich funkcją cel, roboczogodzinami oraz godzina na daną maszynę
-
         W tej klasie zmieniamy ilość dostępnych zasobów
         """
         super().__init__(worker_hours=worker_hours, hours_per_stage=hours_per_stage, profit=profit,
@@ -242,7 +241,7 @@ class Solution(Factory):
         self.production[part_number] += 1  # dodaje przedmiot do wektora rozwiązań
         #tu można zmienić żeby ograniczenia sprawdzałą funkcja a jeśli nie są spełnione to reverse_changes()
 
-    def change_neighbour(self, neigh_type='default', del_selection='default', banned_numbers=[]):
+    def change_neighbour(self, neigh_type='default', del_selection='default'):
         """
         funkcja do zmiany sąsiada - zależnie od tego, jaki jest 'typ sąsiedztwa', tak zostanie zmienione rozwiązanie
         :param neigh_type: typ sąsiedztwa, domyślnie default - jeden produkt usunięty z rozwiązania i wypełnienie
@@ -252,14 +251,8 @@ class Solution(Factory):
         initial_production = deepcopy(self.production)
         if del_selection == 'default':
             part_number = random.randint(0, self.hours_per_stage.shape[1]-1) # losuję produkt do usunięcia
-            iters = 0
-            while part_number in banned_numbers and iters < 30:
-                part_number = random.randint(0, self.hours_per_stage.shape[1] - 1)  # losuję produkt do usunięcia
         elif del_selection == 'deterministic':
             part_number = np.random.choice(np.arange(0, len(self.profit)), p=self.reversed_probability)
-            iters = 0
-            while part_number in banned_numbers and iters < 30:
-                part_number = np.random.choice(np.arange(0, len(self.profit)), p=self.reversed_probability)
         if self.production[part_number] > 0: # sprawdzam czy w ogóle taka część ma być produkowana
             self.production[part_number] -= 1
             self.workers_hours_left += self.checking_time
@@ -269,7 +262,7 @@ class Solution(Factory):
             while self.workers_hours_left > 0 and self.production_error < 10: # tu można zamiast stałej dać parametr
                 self.random_part(part_number, type=neigh_type) # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
             if self.production in self.tabu_list or self.ograniczenia():  # jeśli to jest zabronione przejście, to odwróć zmiany
-                self.reverse_changes(initial_production)
+                self.reverse_changes(initial_production)  
             else:
                 self.tabu_list.append(deepcopy(self.production))  # dodaję rozwiązanie do listy tabu
                 if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():  # zapamiętywanie najlepszego rozwiązania
@@ -292,8 +285,7 @@ class Solution(Factory):
 
             self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
         else:
-            banned_numbers.append(part_number)
-            self.change_neighbour(neigh_type=neigh_type, banned_numbers=banned_numbers)
+            self.change_neighbour(neigh_type=neigh_type)
 
     def reverse_changes(self, previous_state):
         """
@@ -340,8 +332,7 @@ class Solution(Factory):
 
 
 class TabuSearch():
-    def __init__(self, solution, neigh_type='default', del_selection='default'
-                 , aspiration_criteria='random', stopping_cond=None, max_iter = 100, aspiration_threshold = 10):
+    def __init__(self, solution, neigh_type='default', del_selection='default', aspiration_criteria='random', max_iter=100, aspiration_threshold=10):
         """
         :param solution: startowe rozwiązanie, obiekt klasy Solution
         :param max_tabu_len: wielkość listy tabu
@@ -353,7 +344,6 @@ class TabuSearch():
         """
         self.solution = solution
         self.max_tabu_len = solution.max_tabu_len
-        self.stopping_cond = stopping_cond
         self.max_iter = max_iter
         self.neigh_type = neigh_type
         self.del_selection = del_selection
@@ -375,7 +365,7 @@ class TabuSearch():
         iter = 0  # liczba iteracji
         counter = 0  # liczba iteracji od poprzedniej aktualizacji najlepszego rozwiązania
         best = sol.best_funkcja_celu  # najlepsze rozwiązania (wartość funkcji celu)
-        while iter < self.max_iter and not self.stopping_cond:
+        while iter < self.max_iter:
             self.next_move()
             iter += 1
             print(sol.production, sol.funkcja_celu(), sol.ograniczenia())
@@ -434,5 +424,5 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
 
-ts = TabuSearch(solution=sol, neigh_type='deterministic', del_selection='deterministic',aspiration_criteria='random', max_iter=100, aspiration_threshold=10, )
+ts = TabuSearch(solution=sol, neigh_type='deterministic', del_selection='deterministic',aspiration_criteria='random', max_iter=1000, aspiration_threshold=10)
 print(ts.algorythm())
