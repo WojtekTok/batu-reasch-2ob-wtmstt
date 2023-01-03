@@ -600,31 +600,43 @@ class Gui():
 
 
     def create_solution(self):
-        self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple, checking_time=self.worker.checking_time, worker_hours=self.wrk_hrs, days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day)
+        self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple,
+                            checking_time=self.worker.checking_time, worker_hours=self.wrk_hrs,
+                            days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day)
         self.sol.random_solution()
 
 
     def run_algorithm(self):
+        is_warning = 0  # zmienna informująca czy należy włączyć algorytm
         if self.default_aspiration.get() == self.one_of_best_aspiration.get() and self.one_of_best_aspiration.get() == 1:
             messagebox.showinfo(title='Warning', message='Both types of criteria aspiration are active!')
+            is_warning = 1
         elif self.default_aspiration.get() == self.one_of_best_aspiration.get() and self.one_of_best_aspiration.get() == 0:
             messagebox.showinfo(title='Warning', message='None of types of criteria aspiration is active!')
+            is_warning = 1
 
         if self.default_neigh.get() == self.deterministic_neigh.get() and self.deterministic_neigh.get() == 1:
             messagebox.showinfo(title='Warning', message='Both types of neighbour type are active!')
+            is_warning = 1
         elif self.default_neigh.get() == self.deterministic_neigh.get() and self.deterministic_neigh.get() == 0:
             messagebox.showinfo(title='Warning', message='None of types of neighbour type is active!')
+            is_warning = 1
 
         if self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 1:
             messagebox.showinfo(title='Warning', message='Both types of deletion type are active!')
+            is_warning = 1
         elif self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 0:
             messagebox.showinfo(title='Warning', message='None of types of deletion type is active!')
+            is_warning = 1
 
         if self.sol == []:
             messagebox.showinfo(title='Warning', message='No solution found yet!')
+            is_warning = 1
         else:
-            ts = TabuSearch(solution=self.sol, neigh_type=self.neigh_type, aspiration_criteria=self.aspiration, max_iter=self.max_iter, aspiration_threshold=self.threshold)
-            self.text['text'] = ts.algorythm()
+            if is_warning == 0:
+                ts = TabuSearch(solution=self.sol, neigh_type=self.neigh_type, del_selection=self.del_selection,
+                            aspiration_criteria=self.aspiration, max_iter=self.max_iter, aspiration_threshold=self.threshold)
+                self.text['text'] = ts.algorythm()
 
 
     def show_plot(self):

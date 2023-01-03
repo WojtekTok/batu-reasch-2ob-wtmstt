@@ -189,7 +189,7 @@ class Solution(Factory):
                 self.best_funkcja_celu = self.funkcja_celu()
         else:                                                        # wyznaczanie losowego rozwiązanie, ale nie startowego
             self.workers_hours_left = self.workers_hours  
-            # self.hours_per_machine_left = list(self.limits_per_machine)
+            self.hours_per_machine_left = list(self.limits_per_machine)
             self.production = [0 for _ in range(len(self.profit))]
             while self.workers_hours_left > 0 and self.production_error <= 10:
                 self.random_part()
@@ -242,7 +242,7 @@ class Solution(Factory):
         self.production[part_number] += 1  # dodaje przedmiot do wektora rozwiązań
         #tu można zmienić żeby ograniczenia sprawdzałą funkcja a jeśli nie są spełnione to reverse_changes()
 
-    def change_neighbour(self, neigh_type='default', del_selection='default'):
+    def change_neighbour(self, neigh_type='default', del_selection='default', banned_numbers=[]):
         """
         funkcja do zmiany sąsiada - zależnie od tego, jaki jest 'typ sąsiedztwa', tak zostanie zmienione rozwiązanie
         :param neigh_type: typ sąsiedztwa, domyślnie default - jeden produkt usunięty z rozwiązania i wypełnienie
@@ -252,8 +252,14 @@ class Solution(Factory):
         initial_production = deepcopy(self.production)
         if del_selection == 'default':
             part_number = random.randint(0, self.hours_per_stage.shape[1]-1) # losuję produkt do usunięcia
+            iters = 0
+            while part_number in banned_numbers and iters < 30:
+                part_number = random.randint(0, self.hours_per_stage.shape[1] - 1)  # losuję produkt do usunięcia
         elif del_selection == 'deterministic':
             part_number = np.random.choice(np.arange(0, len(self.profit)), p=self.reversed_probability)
+            iters = 0
+            while part_number in banned_numbers and iters < 30:
+                part_number = np.random.choice(np.arange(0, len(self.profit)), p=self.reversed_probability)
         if self.production[part_number] > 0: # sprawdzam czy w ogóle taka część ma być produkowana
             self.production[part_number] -= 1
             self.workers_hours_left += self.checking_time
@@ -286,7 +292,8 @@ class Solution(Factory):
 
             self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
         else:
-            self.change_neighbour(neigh_type=neigh_type)
+            banned_numbers.append(part_number)
+            self.change_neighbour(neigh_type=neigh_type, banned_numbers=banned_numbers)
 
     def reverse_changes(self, previous_state):
         """
@@ -333,7 +340,8 @@ class Solution(Factory):
 
 
 class TabuSearch():
-    def __init__(self, solution, neigh_type='default', aspiration_criteria='random', stopping_cond=None, max_iter = 100, aspiration_threshold = 10):
+    def __init__(self, solution, neigh_type='default', del_selection='default'
+                 , aspiration_criteria='random', stopping_cond=None, max_iter = 100, aspiration_threshold = 10):
         """
         :param solution: startowe rozwiązanie, obiekt klasy Solution
         :param max_tabu_len: wielkość listy tabu
@@ -348,6 +356,7 @@ class TabuSearch():
         self.stopping_cond = stopping_cond
         self.max_iter = max_iter
         self.neigh_type = neigh_type
+        self.del_selection = del_selection
         self.aspiration_criteria = aspiration_criteria
         self.aspiration_threshold = aspiration_threshold
 
@@ -355,7 +364,7 @@ class TabuSearch():
         """
         funkcja wykonująca krok
         """
-        self.solution.change_neighbour(neigh_type='deterministic', del_selection='deterministic')
+        self.solution.change_neighbour(neigh_type=self.neigh_type, del_selection=self.del_selection)
 
     def algorythm(self):
         """
@@ -425,5 +434,5 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
 
-ts = TabuSearch(solution=sol, aspiration_criteria='random_best', max_iter=100, aspiration_threshold=10, )
+ts = TabuSearch(solution=sol, neigh_type='deterministic', del_selection='deterministic',aspiration_criteria='random', max_iter=100, aspiration_threshold=10, )
 print(ts.algorythm())
