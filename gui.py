@@ -6,7 +6,7 @@ import tkinter as tk
 
 class Gui():
 
-    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], lpm = [], hps_matrix = [], aspiration='random', tabu_search = 'default', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10):
+    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], lpm = [], hps_matrix = [], aspiration='random', tabu_search = 'default', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10, max_tabu_len=10):
         """
         Zdefiniowanie zmiennych tak, żeby mieć do nich dostęp w całej klasie
         :param worker: instancja klasy Workers
@@ -24,6 +24,7 @@ class Gui():
         :param sol: intancja klasy Solution
         :param max_iter: maksymalna ilosc iteracji
         :param threshold: threshold
+        :param max_tab_len: długość listy tabu
         """
         self.worker = worker
         self.mach = mach
@@ -40,6 +41,7 @@ class Gui():
         self.sol = sol
         self.max_iter = max_iter
         self.threshold = threshold
+        self.max_tabu_len = max_tabu_len
 
 
         #GUI
@@ -252,13 +254,16 @@ class Gui():
         """
         :param label_max_iter/entry_max_iter: mozliwosc zmiany maksymalnej ilosci iteracji
         :param label_threshold/entry_threshold: mozliwosc zmiany threshold
-        :param button_confirm: zamiana wartosci max_iter oraz threshold
+        :param label_max_tabu_len/entry_max_tabu_len możliwość zmiany długości listy tabu
+        :param button_confirm: zamiana wartosci max_iter, threshold i max_tabu_len
         """
 
         #Labels
         self.label_max_iter = tk.Label(self.root, text='Enter max iter:').place(x=5, y=395)
 
         self.label_threshold = tk.Label(self.root, text='Enter threshold:').place(x=205, y=395)
+
+        self.label_max_tabu_len = tk.Label(self.root, text='Enter size of tabu list:').place(x=405, y=395)
 
         #Entries
         self.entry_max_iter = tk.Entry(self.root)
@@ -267,8 +272,11 @@ class Gui():
         self.entry_threshold = tk.Entry(self.root)
         self.entry_threshold.place(x=205, y=415, width=50)
 
+        self.entry_max_tabu_len = tk.Entry(self.root)
+        self.entry_max_tabu_len.place(x=400, y=415, width=50)
+
         #Buttons
-        self.button_confirm = tk.Button(self.root, text='Confirm', relief=tk.RAISED, command=self.iter_thresh)
+        self.button_confirm = tk.Button(self.root, text='Confirm', relief=tk.RAISED, command=self.iter_thresh_tabu)
         self.button_confirm.place(x=605, y=415)
 
 
@@ -334,6 +342,9 @@ class Gui():
         self.label_threshold_2 = tk.Label(self.window, text='Threshold of aspiration is equal to:').place(x=5, y=165)
         self.label_threshold_2_present = tk.Label(self.window, text=self.threshold).place(x=205, y=165)
 
+        self.label_max_tabu_len = tk.Label(self.window, text='Tabu length is equal to:').place(x=5, y=185)
+        self.label_max_tabu_len_present = tk.Label(self.window, text=self.max_tabu_len).place(x=205, y=185)
+
         self.label_aspiration = tk.Label(self.window, text='Aspiration is:').place(x=5, y=205)
         self.label_aspiration_present = tk.Label(self.window, text=self.aspiration).place(x=205, y=205)
 
@@ -371,6 +382,7 @@ class Gui():
         self.label_actual_aomt_present = tk.Label(self.window, text=self.amt_tuple).place(x=205, y=125)
         self.label_max_iter_present = tk.Label(self.window, text=self.max_iter).place(x=205, y=145)
         self.label_threshold_2_present = tk.Label(self.window, text=self.threshold).place(x=205, y=165)
+        self.label_max_tabu_len_present = tk.Label(self.window, text=self.max_tabu_len).place(x=205, y=185)
         self.label_aspiration_present = tk.Label(self.window, text=self.aspiration).place(x=205, y=205)
         self.label_deletion_present = tk.Label(self.window, text=self.del_selection).place(x=205, y=225)
         self.label_neighbours_present = tk.Label(self.window, text=self.neigh_type).place(x=205, y=245)
@@ -563,7 +575,7 @@ class Gui():
 
 
     def ts_check(self):
-        if self.default_ts.get() == self.deterministic_ts.get() and (self.deterministic_ts.get() == 1 or self.deterministic_ts.get() == 0):
+        if self.default_ts.get() == self.deterministic_ts.get() and (self.default_ts.get() == 1 or self.default_ts.get() == 0):
             pass
         elif self.default_ts.get() == 1:
             self.ts_list = 'constant'
@@ -598,16 +610,17 @@ class Gui():
             self.del_selection = 'deterministic'
 
 
-    def iter_thresh(self):
+    def iter_thresh_tabu(self):
         try:
             self.max_iter = int(self.entry_max_iter.get())
             self.threshold = int(self.entry_threshold.get())
+            self.max_tabu_len = int(self.entry_max_tabu_len.get())
         except:
             messagebox.showinfo(title='Error', message='Please enter valid number!')
 
 
     def create_solution(self):
-        self.sol = Solution(hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple,
+        self.sol = Solution(max_tabu_len=self.max_tabu_len, tabu_type=self.ts_list, hours_per_stage=self.hps_matrix, profit=self.profits, machines_per_stage=self.amt_tuple,
                             checking_time=self.worker.checking_time, worker_hours=self.wrk_hrs,
                             days_of_work=self.worker.days_of_work, hours_per_day=self.worker.hours_per_day, limits_per_machine=self.lpm)
 
@@ -636,6 +649,13 @@ class Gui():
             is_warning = 1
         elif self.default_deletion.get() == self.deterministic_deletion.get() and self.deterministic_deletion.get() == 0:
             messagebox.showinfo(title='Warning', message='None of types of deletion type is active!')
+            is_warning = 1
+
+        if self.default_ts.get() == self.deterministic_ts.get() and self.deterministic_ts.get() == 1:
+            messagebox.showinfo(title='Warning', message='Both types of tabu lists are active!')
+            is_warning = 1
+        elif self.default_ts.get() == self.deterministic_ts.get() and self.deterministic_ts.get() == 0:
+            messagebox.showinfo(title='Warning', message='None of types of tabu lists is active!')
             is_warning = 1
 
         if self.sol == []:

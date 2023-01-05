@@ -117,9 +117,13 @@ class Factory:
 
 
 class Solution(Factory):
-    def __init__(self, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
+    def __init__(self, max_tabu_len, tabu_type, hours_per_stage=Factory.default_hps, profit=Factory.default_profit,
                  machines_per_stage=Factory.default_mps, limits_per_machine=Factory.default_lpm, checking_time=10, worker_hours=400, days_of_work = 5, hours_per_day = 8):
         """
+        :param previous_funkcja_celu: parametr wykorzystywany do algorytmu z deterministyczną listą tabu, aby porównywać kolejne kroki
+        :param max_tabu_len: startowa długość listy tabu (dla tabu_type = const)
+        :param current_tabu_len: obecna długość listy tabu (dla tabu_type = deterministic)
+        :param tabu_type: constant/deterministic lista tabu pozostaje stałej długości lub jest deterministyczna
         :param workers_hours_left: pozostałe roboczogodziny
         :param hours_per_machine_left: pozostałe godziny na daną maszynę
         :param production_error: ograniczenie związane z faktem, ze przy małej ilości godzin nie jesteśmy w stanie zainicjować produkcji nowej części
@@ -135,10 +139,13 @@ class Solution(Factory):
         self.production = [0 for _ in range(len(self.profit))]
         self.best_production = [0 for _ in range(len(self.profit))]
         self.best_funkcja_celu = 0
+        self.previous_funkcja_celu = 0
         self.production_error = 0
         self.tabu_list = []
         self.best5_productions = [(0, 0) for _ in range(5)]
-        self.max_tabu_len = 10 # trzeba to przekazywac jako parametr
+        self.max_tabu_len = max_tabu_len
+        self.current_tabu_len = max_tabu_len
+        self.tabu_type = tabu_type
         self.part_probability = self.calculate_probability()
         self.reversed_probability = self.calculate_reversed_probability()
         self.day_of_work = days_of_work
@@ -166,7 +173,7 @@ class Solution(Factory):
             for j in range(self.hours_per_stage.shape[1]):
                 requirements[i] += self.hours_per_stage[i][j] * self.production[j]
                 if requirements[i] > self.hours_per_day * self.day_of_work * self.machines_per_stage[i]: # 5 (dni tygodnia) * 8 (roboczogodzin dziennie) * ilość maszyn na danym etapie
-                    print('Zostało godzin na maszyne', self.hours_per_machine_left)
+                    # print('Zostało godzin na maszyne', self.hours_per_machine_left)
                     return 1
             req_worker += self.checking_time * self.production[i] + requirements[i]
             if req_worker > self.workers_hours:
@@ -186,7 +193,11 @@ class Solution(Factory):
             if self.best_funkcja_celu == 0:
                 self.best_production = deepcopy(self.production)
                 self.best_funkcja_celu = self.funkcja_celu()
+            if self.tabu_type == 'deterministic':
+                self.previous_funkcja_celu = self.funkcja_celu()
         else:                                                        # wyznaczanie losowego rozwiązanie, ale nie startowego
+            if self.tabu_type == 'deterministic':
+                self.current_tabu_len = self.max_tabu_len                       # resetuje parametry rozwiązania do startowych 
             self.workers_hours_left = self.workers_hours  
             self.hours_per_machine_left = [self.day_of_work * self.hours_per_day * self.machines_per_stage[i] for i in range(len(self.machines_per_stage))]
             self.production = [0 for _ in range(len(self.profit))]
@@ -195,7 +206,10 @@ class Solution(Factory):
             self.production_error = 0
             if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():
                 self.best_production = deepcopy(self.production)
-                self.best_funkcja_celu = self.funkcja_celu()    
+                self.best_funkcja_celu = self.funkcja_celu()
+            if self.tabu_type == 'deterministic':
+                self.previous_funkcja_celu = self.funkcja_celu()
+                self.current_tabu_len = self.max_tabu_len
 
     def random_best_solution(self):
         """
@@ -212,6 +226,9 @@ class Solution(Factory):
         self.workers_hours_left = deepcopy(random_sol[2])
         self.hours_per_machine_left = deepcopy(random_sol[3])
         self.best5_productions = sorted(self.best5_productions, reverse=True)
+        if self.tabu_type == 'deterministic':
+            self.previous_funkcja_celu = self.funkcja_celu()
+            self.current_tabu_len = self.max_tabu_len
 
     def random_part(self, banned_part=np.inf, type='default'):
         """
@@ -261,16 +278,27 @@ class Solution(Factory):
                 self.workers_hours_left += self.hours_per_stage[i, part_number]
             while self.workers_hours_left > 0 and self.production_error < 10: # tu można zamiast stałej dać parametr
                 self.random_part(part_number, type=neigh_type) # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
-            if self.production in self.tabu_list or self.ograniczenia():  # jeśli to jest zabronione przejście, to odwróć zmiany
-                self.reverse_changes(initial_production)  
+            if self.production in self.tabu_list:  # jeśli to jest zabronione przejście, to odwróć zmiany
+                self.reverse_changes(initial_production)
             else:
                 self.tabu_list.append(deepcopy(self.production))  # dodaję rozwiązanie do listy tabu
                 if self.funkcja_celu() > self.best_funkcja_celu and not self.ograniczenia():  # zapamiętywanie najlepszego rozwiązania
                     self.best_production = deepcopy(self.production)
                     self.best_funkcja_celu = self.funkcja_celu()
-                if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
-                    self.tabu_list.pop(0)
                 
+                if self.tabu_type == 'constant':
+                    if len(self.tabu_list) > self.max_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
+                        self.tabu_list.pop(0)
+                elif self.tabu_type == 'deterministic':
+                    if len(self.tabu_list) > self.current_tabu_len:  # sprawdzam czy lista tabu nie jest za długa
+                        self.tabu_list.pop(0)
+                
+                if self.tabu_type == 'deterministic':
+                    if self.funkcja_celu() + 100 < self.previous_funkcja_celu:  # zmniejszamy listę tabu przy jakimś warunku
+                        self.current_tabu_len -= 1
+                    elif self.funkcja_celu() > self.previous_funkcja_celu + 100:  # powiększamy listę przy jakimś warunku
+                        self.current_tabu_len += 1
+
                 if self.funkcja_celu() > self.best5_productions[-1][0] and not self.ograniczenia():    # zapamiętywanie kilku najlepszych rozwiązań, potem użwamy do kryterium aspiracji
                     already_on_list = False
                     for i in range(len(self.best5_productions)):
@@ -282,7 +310,8 @@ class Solution(Factory):
                         self.best5_productions = sorted(self.best5_productions, reverse=True)
                     else:
                         already_on_list = False
-
+                if self.tabu_type == 'deterministic':
+                    self.previous_funkcja_celu = self.funkcja_celu()
             self.production_error = 0 # wyzerowanie tego errora żeby przy kolejnych iteracjach szło od zera
         else:
             self.change_neighbour(neigh_type=neigh_type)
@@ -368,7 +397,7 @@ class TabuSearch():
         while iter < self.max_iter:
             self.next_move()
             iter += 1
-            print(self.solution.production, self.solution.funkcja_celu(), self.solution.ograniczenia())
+            print(sol.production, sol.funkcja_celu())
             
             # kryterium aspiracji
             if self.aspiration_criteria == 'random':
@@ -420,10 +449,10 @@ print(hps_matrix)
 profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, prod4.profit)
 
 
-# #Korzystamy już z wpisywanych wartości
-sol = Solution(hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
+#Korzystamy już z wpisywanych wartości
+sol = Solution(max_tabu_len=10, tabu_type='deterministic', hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
 print(type(sol))
 
-ts = TabuSearch(solution=sol, neigh_type='deterministic', del_selection='deterministic',aspiration_criteria='random', max_iter=100, aspiration_threshold=10)
-ts.algorythm()
+ts = TabuSearch(solution=sol, neigh_type='default', del_selection='default',aspiration_criteria='random', max_iter=1000, aspiration_threshold=10)
+print(ts.algorythm())
