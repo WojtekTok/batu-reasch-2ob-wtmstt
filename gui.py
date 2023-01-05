@@ -1,12 +1,14 @@
 from main import *
 from tkinter import messagebox, Tk
 from tkinter.filedialog import askopenfilename
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import tkinter as tk
 
 
 class Gui():
 
-    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], lpm = [], hps_matrix = [], aspiration='random', tabu_search = 'default', del_selection='default', neigh_type='default', sol=[], max_iter=100, threshold=10, max_tabu_len=10):
+    def __init__(self, worker=Workers(1,1), mach=Machines(1), prod=Product(1,1), workers_hours=0, amt_tuple=0, profits = [], lpm = [], hps_matrix = [], aspiration='random', tabu_search = 'default', del_selection='default', neigh_type='default', sol=[], ts=[], max_iter=100, threshold=10, max_tabu_len=10):
         """
         Zdefiniowanie zmiennych tak, żeby mieć do nich dostęp w całej klasie
         :param worker: instancja klasy Workers
@@ -22,6 +24,7 @@ class Gui():
         :param del_selection: pozwala na wybranie rodzaju usuwania elementów
         :param neigh_type: pozwala na wybranie rodzaju sasiedztwa
         :param sol: intancja klasy Solution
+        :param ts: instancja klasy TabuSearch
         :param max_iter: maksymalna ilosc iteracji
         :param threshold: threshold
         :param max_tab_len: długość listy tabu
@@ -39,6 +42,7 @@ class Gui():
         self.del_selection = del_selection
         self.neigh_type = neigh_type
         self.sol = sol
+        self.ts = ts
         self.max_iter = max_iter
         self.threshold = threshold
         self.max_tabu_len = max_tabu_len
@@ -663,12 +667,51 @@ class Gui():
             is_warning = 1
         else:
             if is_warning == 0:
-                ts = TabuSearch(solution=self.sol, neigh_type=self.neigh_type, del_selection=self.del_selection,
+                self.ts = TabuSearch(solution=self.sol, neigh_type=self.neigh_type, del_selection=self.del_selection,
                             aspiration_criteria=self.aspiration, max_iter=self.max_iter, aspiration_threshold=self.threshold)
+                self.ts.algorythm()
                 # self.text['text'] = ts.algorythm()
-                print(ts.algorythm())
 
     def show_plot(self):
-        pass #TODO: dodanie logiki do tworzenia wykresow
+        self.window = tk.Toplevel()
+        self.window.title("Show plot")
+        self.window.geometry("600x500")
+        self.window.resizable(width=False, height=False)
+        self.window.iconbitmap(r"ikona.ico")
+
+        self.label_best_solution = tk.Label(self.window, text='The best solution is equal to:').place(x=5, y=5)
+        self.label_best_solution = tk.Label(self.window, text=sol.best_funkcja_celu).place(x=205, y=5)
+
+        self.label_best_production = tk.Label(self.window, text='The best production is equal to:').place(x=5, y=20)
+        self.label_best_production = tk.Label(self.window, text=sol.best_production).place(x=205, y=20)
+
+        fig = Figure(figsize=(4, 4))
+        plot1 = fig.add_subplot(111)
+        plot1.plot(ts.all_solutions)
+        
+        # creating the Tkinter canvas
+        # containing the Matplotlib figure
+        canvas = FigureCanvasTkAgg(fig, master=self.window)  
+        canvas.draw()
+    
+        # placing the canvas on the Tkinter window
+        canvas.get_tk_widget().pack(side='left')
+    
+        # creating the Matplotlib toolbar
+        toolbar = NavigationToolbar2Tk(canvas, self.window)
+        toolbar.update()
+    
+        # placing the toolbar on the Tkinter window
+        canvas.get_tk_widget().pack()
+
+        # self.button_refresh = tk.Button(self.window, text='Refresh plot', relief=tk.RAISED, command=self.refresh_plot).place(x=510, y=35)
+        self.button_close = tk.Button(self.window, text='Close plot', relief=tk.RAISED, command=self.window.destroy).place(x=510, y=5)
+
+    # def refresh_plot(self):
+    #     self.label_best_solution = tk.Label(self.window, text='The best solution is equal to:').place(x=5, y=5)
+    #     self.label_best_solution = tk.Label(self.window, text=sol.best_funkcja_celu).place(x=205, y=5)
+
+    #     self.label_best_production = tk.Label(self.window, text='The best production is equal to:').place(x=5, y=20)
+    #     self.label_best_production = tk.Label(self.window, text=sol.best_production).place(x=205, y=20)
 
 Gui()

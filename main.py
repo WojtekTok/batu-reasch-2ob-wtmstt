@@ -364,20 +364,20 @@ class TabuSearch():
     def __init__(self, solution, neigh_type='default', del_selection='default', aspiration_criteria='random', max_iter=100, aspiration_threshold=10):
         """
         :param solution: startowe rozwiązanie, obiekt klasy Solution
-        :param max_tabu_len: wielkość listy tabu
         :param max_iter: maksymalna liczba iteracji
         :param aspiration_threshold: po ilu iteracjach może nastąpić reset rozwiązania
         :param stopping_cond: warunek przerywający działanie algorytmu, inny niż liczba iteracji
         :param neighbourhood: rodzaj stosowanego sąsiedztwa
         :param aspiration_criteria: rodzaj stosowanego kryterium aspiracji
+        :param all_solutions: tablica zapisują wszystkie funkcje celu po kolei
         """
         self.solution = solution
-        self.max_tabu_len = solution.max_tabu_len
         self.max_iter = max_iter
         self.neigh_type = neigh_type
         self.del_selection = del_selection
         self.aspiration_criteria = aspiration_criteria
         self.aspiration_threshold = aspiration_threshold
+        self.all_solutions = []
 
     def next_move(self):
         """
@@ -398,24 +398,29 @@ class TabuSearch():
             self.next_move()
             iter += 1
             print(sol.production, sol.funkcja_celu())
-            
+            self.all_solutions.append(sol.funkcja_celu())
+
             # kryterium aspiracji
-            if self.aspiration_criteria == 'random':
+            if self.aspiration_criteria == 'random' and iter < self.max_iter:
                 if best == self.solution.best_funkcja_celu:
                     counter += 1
                     if counter == self.aspiration_threshold:
                         self.solution.random_solution()
+                        self.all_solutions.append(sol.funkcja_celu())
                         counter = 0
+                        iter += 1
                 else:
                     best = self.solution.best_funkcja_celu
                     counter = 0
             # kryterium aspiracji, które idzie do jednego z najlepszych rozwiązań
-            elif self.aspiration_criteria == 'random_best':
+            elif self.aspiration_criteria == 'random_best' and iter < self.max_iter:
                 if best == self.solution.best_funkcja_celu:
                     counter += 1
                     if counter == self.aspiration_threshold:
                         self.solution.random_best_solution()
+                        self.all_solutions.append(sol.funkcja_celu())
                         counter = 0
+                        iter += 1
                 else:
                     best = self.solution.best_funkcja_celu
                     counter = 0
@@ -450,9 +455,9 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 
 
 #Korzystamy już z wpisywanych wartości
-sol = Solution(max_tabu_len=10, tabu_type='deterministic', hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
+sol = Solution(max_tabu_len=10, tabu_type='constant', hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
 sol.random_solution()
 print(type(sol))
 
-ts = TabuSearch(solution=sol, neigh_type='default', del_selection='default',aspiration_criteria='random', max_iter=1000, aspiration_threshold=10)
+ts = TabuSearch(solution=sol, neigh_type='default', del_selection='default',aspiration_criteria='random', max_iter=100, aspiration_threshold=10)
 print(ts.algorythm())
