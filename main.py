@@ -397,8 +397,8 @@ class TabuSearch():
         while iter < self.max_iter:
             self.next_move()
             iter += 1
-            print(sol.production, sol.funkcja_celu())
-            self.all_solutions.append(sol.funkcja_celu())
+            print(self.solution.production, self.solution.funkcja_celu())
+            self.all_solutions.append(self.solution.funkcja_celu())
 
             # kryterium aspiracji
             if self.aspiration_criteria == 'random' and iter < self.max_iter:
@@ -406,7 +406,7 @@ class TabuSearch():
                     counter += 1
                     if counter == self.aspiration_threshold:
                         self.solution.random_solution()
-                        self.all_solutions.append(sol.funkcja_celu())
+                        self.all_solutions.append(self.solution.funkcja_celu())
                         counter = 0
                         iter += 1
                 else:
@@ -418,7 +418,7 @@ class TabuSearch():
                     counter += 1
                     if counter == self.aspiration_threshold:
                         self.solution.random_best_solution()
-                        self.all_solutions.append(sol.funkcja_celu())
+                        self.all_solutions.append(self.solution.funkcja_celu())
                         counter = 0
                         iter += 1
                 else:
@@ -455,9 +455,9 @@ profits = prod1.profit_all_products(prod1.profit, prod2.profit, prod3.profit, pr
 
 
 #Korzystamy już z wpisywanych wartości
-sol = Solution(max_tabu_len=10, tabu_type='constant', hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
-sol.random_solution()
-print(type(sol))
+# sol = Solution(max_tabu_len=10, tabu_type='constant', hours_per_stage=hps_matrix, profit=profits, machines_per_stage=mpt, checking_time=work.checking_time, worker_hours=work_time, days_of_work=work.days_of_work, hours_per_day=work.hours_per_day)
+# sol.random_solution()
+# print(type(sol))
 
-ts = TabuSearch(solution=sol, neigh_type='default', del_selection='default',aspiration_criteria='random', max_iter=100, aspiration_threshold=10)
-print(ts.algorythm())
+# ts = TabuSearch(solution=sol, neigh_type='default', del_selection='default',aspiration_criteria='random', max_iter=100, aspiration_threshold=10)
+# print(ts.algorythm())

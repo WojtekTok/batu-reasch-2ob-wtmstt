@@ -680,14 +680,14 @@ class Gui():
         self.window.iconbitmap(r"ikona.ico")
 
         self.label_best_solution = tk.Label(self.window, text='The best solution is equal to:').place(x=5, y=5)
-        self.label_best_solution = tk.Label(self.window, text=sol.best_funkcja_celu).place(x=205, y=5)
+        self.label_best_solution = tk.Label(self.window, text=self.sol.best_funkcja_celu).place(x=205, y=5)
 
         self.label_best_production = tk.Label(self.window, text='The best production is equal to:').place(x=5, y=20)
-        self.label_best_production = tk.Label(self.window, text=sol.best_production).place(x=205, y=20)
+        self.label_best_production = tk.Label(self.window, text=self.sol.best_production).place(x=205, y=20)
 
         fig = Figure(figsize=(4, 4))
         plot1 = fig.add_subplot(111)
-        plot1.plot(ts.all_solutions)
+        plot1.plot(self.ts.all_solutions)
         
         # creating the Tkinter canvas
         # containing the Matplotlib figure
@@ -708,10 +708,17 @@ class Gui():
         self.button_close = tk.Button(self.window, text='Close plot', relief=tk.RAISED, command=self.window.destroy).place(x=510, y=5)
 
     # def refresh_plot(self):
-    #     self.label_best_solution = tk.Label(self.window, text='The best solution is equal to:').place(x=5, y=5)
-    #     self.label_best_solution = tk.Label(self.window, text=sol.best_funkcja_celu).place(x=205, y=5)
+    #     self.label_best_solution = tk.Label(self.window, text=self.sol.best_funkcja_celu).place(x=205, y=5)
+    #     self.label_best_production = tk.Label(self.window, text=self.sol.best_production).place(x=205, y=20)
 
-    #     self.label_best_production = tk.Label(self.window, text='The best production is equal to:').place(x=5, y=20)
-    #     self.label_best_production = tk.Label(self.window, text=sol.best_production).place(x=205, y=20)
+    #     fig = Figure(figsize=(4, 4))
+    #     plot1 = fig.add_subplot(111)
+    #     plot1.plot(self.ts.all_solutions)
+    #     canvas = FigureCanvasTkAgg(fig, master=self.window)  
+    #     canvas.draw()
+    #     canvas.get_tk_widget().pack(side='left')
+    #     toolbar = NavigationToolbar2Tk(canvas, self.window)
+    #     toolbar.update()
+    #     canvas.get_tk_widget().pack()
 
 Gui()
