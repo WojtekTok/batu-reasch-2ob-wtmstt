@@ -378,6 +378,8 @@ class TabuSearch():
         self.aspiration_criteria = aspiration_criteria
         self.aspiration_threshold = aspiration_threshold
         self.all_solutions = []
+        self.best_solutions = []
+        self.aspiration_points = []
 
     def next_move(self):
         """
@@ -399,7 +401,7 @@ class TabuSearch():
             iter += 1
             print(self.solution.production, self.solution.funkcja_celu())
             self.all_solutions.append(self.solution.funkcja_celu())
-
+            self.best_solutions.append(self.solution.best_funkcja_celu)
             # kryterium aspiracji
             if self.aspiration_criteria == 'random' and iter < self.max_iter:
                 if best == self.solution.best_funkcja_celu:
@@ -407,6 +409,8 @@ class TabuSearch():
                     if counter == self.aspiration_threshold:
                         self.solution.random_solution()
                         self.all_solutions.append(self.solution.funkcja_celu())
+                        self.best_solutions.append(self.solution.best_funkcja_celu)
+                        self.aspiration_points.append((len(self.all_solutions)-1, self.solution.funkcja_celu()))
                         counter = 0
                         iter += 1
                 else:
@@ -419,11 +423,14 @@ class TabuSearch():
                     if counter == self.aspiration_threshold:
                         self.solution.random_best_solution()
                         self.all_solutions.append(self.solution.funkcja_celu())
+                        self.best_solutions.append(self.solution.best_funkcja_celu)
+                        self.aspiration_points.append((len(self.all_solutions)-1, self.solution.funkcja_celu()))
                         counter = 0
                         iter += 1
                 else:
                     best = self.solution.best_funkcja_celu
                     counter = 0
+
         return self.solution.best_production, self.solution.best_funkcja_celu
         
 

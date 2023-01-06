@@ -671,6 +671,8 @@ class Gui():
                             aspiration_criteria=self.aspiration, max_iter=self.max_iter, aspiration_threshold=self.threshold)
                 self.ts.algorythm()
                 # self.text['text'] = ts.algorythm()
+                tk.Label(self.root, text=f'Income: {self.sol.best_funkcja_celu}').place(x=150, y=495)
+                tk.Label(self.root, text=f'Production: {self.sol.best_production}').place(x=150, y=510)
 
     def show_plot(self):
         self.window = tk.Toplevel()
@@ -688,6 +690,9 @@ class Gui():
         fig = Figure(figsize=(4, 4))
         plot1 = fig.add_subplot(111)
         plot1.plot(self.ts.all_solutions)
+        plot1.plot(self.ts.best_solutions)
+        for point in self.ts.aspiration_points:
+            plot1.plot(point[0], point[1], 'gx')
         
         # creating the Tkinter canvas
         # containing the Matplotlib figure
