@@ -396,6 +396,8 @@ class TabuSearch():
         iter = 0  # liczba iteracji
         counter = 0  # liczba iteracji od poprzedniej aktualizacji najlepszego rozwiązania
         best = self.solution.best_funkcja_celu  # najlepsze rozwiązania (wartość funkcji celu)
+        self.all_solutions.append(self.solution.funkcja_celu())
+        self.best_solutions.append(self.solution.best_funkcja_celu)
         while iter < self.max_iter:
             self.next_move()
             iter += 1
