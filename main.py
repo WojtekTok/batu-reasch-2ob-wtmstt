@@ -279,6 +279,7 @@ class Solution(Factory):
             while self.workers_hours_left > 0 and self.production_error < len(self.profit)*100: # tu można zamiast stałej dać parametr
                 self.random_part(part_number, type=neigh_type) # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
             print(self.hours_per_machine_left)
+            print(self.workers_hours_left)
             if self.production in self.tabu_list:  # jeśli to jest zabronione przejście, to odwróć zmiany
                 self.reverse_changes(initial_production)
             else:
@@ -354,10 +355,20 @@ class Solution(Factory):
         funkcja obliczająca w miarę odwrotne prawdopodoieństwo - idealnie byc nie musi :D
         :return: odwrotne prawdopodobieństwo
         """
-        avg_prob = 1/len(self.profit)
+        # avg_prob = 1/len(self.profit)
+        # rev_prob = [0 for _ in range(len(self.profit))]
+        # for i in range(len(self.part_probability)):
+        #     rev_prob[i] = avg_prob - (self.part_probability[i]-avg_prob)
+        #     if rev_prob[i]<0:
+        #         rev_prob[0] -= rev_prob[i]-0.00001
+        #         rev_prob[i] = 0.00001  # to nie jest dobry pomysł xd
+        # print(rev_prob)
+        # print(sum(rev_prob))
         rev_prob = [0 for _ in range(len(self.profit))]
+        sorted_ind = np.argsort(self.part_probability)
+        reversed_lst = np.flip(sorted_ind)
         for i in range(len(self.part_probability)):
-            rev_prob[i] = avg_prob - (self.part_probability[i]-avg_prob)
+            rev_prob[sorted_ind[i]] = self.part_probability[reversed_lst[i]]
         return rev_prob
 
 
