@@ -276,8 +276,9 @@ class Solution(Factory):
             for i in range(self.hours_per_stage.shape[0]):
                 self.hours_per_machine_left[i] += self.hours_per_stage[i, part_number]
                 self.workers_hours_left += self.hours_per_stage[i, part_number]
-            while self.workers_hours_left > 0 and self.production_error < 10: # tu można zamiast stałej dać parametr
+            while self.workers_hours_left > 0 and self.production_error < len(self.profit)*100: # tu można zamiast stałej dać parametr
                 self.random_part(part_number, type=neigh_type) # zabraniam dodawania odjętego produktu - tylko otoczenie a nie sąsiedztwo
+            print(self.hours_per_machine_left)
             if self.production in self.tabu_list:  # jeśli to jest zabronione przejście, to odwróć zmiany
                 self.reverse_changes(initial_production)
             else:
